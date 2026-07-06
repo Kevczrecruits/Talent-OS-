@@ -103,63 +103,82 @@ function generateCandidatesLocally(criteria: any, sourcingMode: string) {
   const isGrounded = sourcingMode === "grounded";
   const targetRole = criteria.role || "Software Engineer";
   const targetLocation = criteria.location || "Toronto, ON";
-  const targetSkills = criteria.required_skills || ["TypeScript", "React"];
-  const targetEdu = criteria.education_signals && criteria.education_signals.length > 0 
+  const targetSkills = (criteria.required_skills && criteria.required_skills.length > 0) 
+    ? criteria.required_skills 
+    : ["TypeScript", "React", "Node.js"];
+  const targetEdu = (criteria.education_signals && criteria.education_signals.length > 0) 
     ? criteria.education_signals[0] 
     : "University of Waterloo";
 
-  const pool = [
-    { name: "Dr. Raymond Vance", baseTitle: "Staff Systems Researcher", baseCompany: "Vector Institute", baseLocation: "Waterloo, ON", skills: ["RDMA", "RoCEv2", "C++", "Go", "Distributed Systems"] },
-    { name: "Sarah Jenkins", baseTitle: "Senior Distributed Systems Architect", baseCompany: "Cohere AI", baseLocation: "Toronto, ON", skills: ["gRPC", "Kubernetes", "Go", "Rust", "Distributed Systems"] },
-    { name: "Devon Miller", baseTitle: "Principal Infrastructure Architect", baseCompany: "Shopify", baseLocation: "Ottawa, ON", skills: ["Ruby", "Go", "Kubernetes", "Kafka", "Distributed Systems"] },
-    { name: "Elena Rostova", baseTitle: "Kernel & Networking Engineer", baseCompany: "AMD", baseLocation: "Vancouver, BC", skills: ["C++", "Rust", "RDMA", "Linux Kernel", "InfiniBand"] },
-    { name: "Xingyu Chen", baseTitle: "Senior Compiler & GPU Architect", baseCompany: "Huawei Research", baseLocation: "Waterloo, ON", skills: ["CUDA", "C++", "LLVM", "PyTorch", "GPU Programming"] },
-    { name: "Dr. Amara Osei", baseTitle: "Principal ML Research Scientist", baseCompany: "Cohere", baseLocation: "Toronto, ON", skills: ["PyTorch", "LLMs", "Transformers", "Python", "Deep Learning"] },
-    { name: "Kenji Takahashi", baseTitle: "Lead DevOps & Platforms Engineer", baseCompany: "Amazon AWS", baseLocation: "Vancouver, BC", skills: ["Terraform", "Kubernetes", "AWS", "Go", "Docker"] },
-    { name: "Michael Sterling", baseTitle: "Senior UI Architect", baseCompany: "Vercel", baseLocation: "San Francisco, CA", skills: ["React", "TypeScript", "Next.js", "Tailwind CSS", "Node.js"] },
-    { name: "Chloe Laurent", baseTitle: "Lead Full Stack Engineer", baseCompany: "Stripe", baseLocation: "Toronto, ON", skills: ["TypeScript", "React", "Node.js", "Ruby", "PostgreSQL"] },
-    { name: "Siddharth Nair", baseTitle: "Senior Security & Systems Engineer", baseCompany: "TD Securities", baseLocation: "Toronto, ON", skills: ["Cryptography", "Go", "Linux", "Docker", "Python"] }
-  ];
-
-  // Select candidates based on query alignment where possible
+  const firstNames = ["Raymond", "Elena", "Devon", "Chloe", "Siddharth", "Amara", "Kenji", "Sarah", "Marcus", "Sophia", "Aisha", "Alex"];
+  const lastNames = ["Vance", "Rostova", "Miller", "Laurent", "Nair", "Osei", "Takahashi", "Jenkins", "Patel", "Gomez", "Wong", "Carter"];
+  
+  const techCompanies = ["Google Brain", "Cohere AI", "Stripe", "Vercel", "Shopify", "AMD", "Vector Institute", "Amazon AWS", "Meta", "Netflix"];
+  
+  const results = [];
   const count = 7;
-  const results = pool.slice(0, count).map((item, idx) => {
+  
+  for (let i = 0; i < count; i++) {
     const isSynthetic = !isGrounded;
+    const name = `${firstNames[i % firstNames.length]} ${lastNames[(i + 3) % lastNames.length]}`;
+    const company = techCompanies[i % techCompanies.length];
     
-    let location = item.baseLocation;
-    if (idx < 3 && targetLocation && targetLocation !== "Remote") {
-      location = targetLocation;
+    // Determine title based on seniority and requested role
+    let titlePrefix = "Senior";
+    if (i === 0) titlePrefix = "Staff";
+    else if (i === 2) titlePrefix = "Principal";
+    else if (i === 4) titlePrefix = "Lead";
+    else if (i === 5 && criteria.seniority_level?.toLowerCase().includes("principal")) titlePrefix = "Principal";
+    else if (criteria.seniority_level?.toLowerCase().includes("junior")) titlePrefix = "Junior";
+    else if (criteria.seniority_level?.toLowerCase().includes("staff")) titlePrefix = "Staff";
+    
+    const title = `${titlePrefix} ${targetRole}`;
+    
+    // Determine location - some matching targetLocation, some slightly varied
+    let location = targetLocation;
+    if (targetLocation.toLowerCase() === "remote") {
+      const locationsPool = ["Toronto, ON", "Vancouver, BC", "San Francisco, CA", "New York, NY", "Waterloo, ON"];
+      location = `Remote (${locationsPool[i % locationsPool.length]})`;
+    } else if (i > 3) {
+      const cities = ["Toronto, ON", "Waterloo, ON", "Vancouver, BC", "Montreal, QC"];
+      location = cities[i % cities.length];
     }
+    
+    // Dynamic matching skills
+    const relatedTechs = ["Go", "Rust", "Python", "Kubernetes", "gRPC", "Docker", "PostgreSQL", "GraphQL", "Tailwind CSS", "Next.js", "AWS", "PyTorch"];
+    const candidateSkills = Array.from(new Set([
+      ...targetSkills.slice(0, 2),
+      relatedTechs[i % relatedTechs.length],
+      relatedTechs[(i + 5) % relatedTechs.length]
+    ])).slice(0, 4);
 
-    const combinedSkills = Array.from(new Set([...targetSkills.slice(0, 2), ...item.skills])).slice(0, 4);
-
-    const sanitizedName = encodeURIComponent(item.name);
-    const sanitizedCompany = encodeURIComponent(item.baseCompany);
+    const sanitizedName = encodeURIComponent(name);
+    const sanitizedCompany = encodeURIComponent(company);
     const searchQueryUrl = `https://www.google.com/search?q=site:linkedin.com/in/+%22${sanitizedName}%22+AND+%22${sanitizedCompany}%22`;
     
-    let webLink = `https://www.google.com/search?q=${sanitizedName}+${sanitizedCompany}+${encodeURIComponent(item.baseTitle)}`;
-    if (idx === 0) {
+    let webLink = `https://www.google.com/search?q=${sanitizedName}+${sanitizedCompany}+${encodeURIComponent(title)}`;
+    if (i === 0) {
       webLink = `https://scholar.google.com/scholar?q=${sanitizedName}+${sanitizedCompany}`;
-    } else if (idx === 1) {
+    } else if (i === 1) {
       webLink = `https://github.com/search?q=${sanitizedName}`;
     }
 
-    const aiMatchNote = `Possesses direct hands-on professional expertise in ${combinedSkills.join(", ")} from tenure at ${item.baseCompany}. Academic background aligns with advanced engineering programs such as ${targetEdu}.`;
+    const aiMatchNote = `Possesses direct hands-on professional expertise in ${candidateSkills.join(", ")} from tenure at ${company}. Academic background aligns with advanced engineering programs such as ${targetEdu}.`;
 
-    return {
-      name: item.name,
-      title: item.baseTitle,
-      company: item.baseCompany,
-      location: location,
-      top_skills: combinedSkills,
-      years_of_experience: `${6 + (idx % 5)} years`,
-      summary: `Ex-FAANG veteran specialized in high-performance ${targetRole.toLowerCase()} environments, container systems, and enterprise pipelines.`,
+    results.push({
+      name,
+      title,
+      company,
+      location,
+      top_skills: candidateSkills,
+      years_of_experience: `${5 + (i % 6)} years`,
+      summary: `Ex-${company} engineer specialized in high-performance ${targetRole.toLowerCase()} architectures, cloud systems, and optimized execution pipelines.`,
       ai_match_note: aiMatchNote,
       web_link: webLink,
       search_query_url: searchQueryUrl,
       is_synthetic: isSynthetic
-    };
-  });
+    });
+  }
 
   return {
     candidates: results,
