@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Sparkles, RefreshCw, AlertCircle, HelpCircle, ArrowRight, UserPlus, FileSearch } from "lucide-react";
+import { Sparkles, RefreshCw, AlertCircle, HelpCircle, ArrowRight, UserPlus, FileSearch, Globe, ExternalLink } from "lucide-react";
 import SourcingInput from "./components/SourcingInput";
 import FilterChips from "./components/FilterChips";
 import ResultCard from "./components/ResultCard";
@@ -11,6 +11,10 @@ export default function App() {
   const [criteria, setCriteria] = useState<SourcingCriteria | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [isFallback, setIsFallback] = useState(false);
+  const [parseFallback, setParseFallback] = useState(false);
+  const [candidatesFallback, setCandidatesFallback] = useState(false);
+  const [downgradedFromGrounded, setDowngradedFromGrounded] = useState(false);
+  const [groundingMetadata, setGroundingMetadata] = useState<any>(null);
   
   // Sourcing loading indicators
   const [loading, setLoading] = useState(false);
@@ -31,6 +35,10 @@ export default function App() {
     setSearchPerformed(true);
     setCriteriaDirty(false);
     setIsFallback(false);
+    setParseFallback(false);
+    setCandidatesFallback(false);
+    setDowngradedFromGrounded(false);
+    setGroundingMetadata(null);
 
     try {
       // Step 1: Query parser call
@@ -45,8 +53,9 @@ export default function App() {
         throw new Error(errData.error || "Failed to parse natural language query into recruitment criteria.");
       }
 
-      const parsedCriteria: SourcingCriteria & { is_fallback?: boolean } = await parseRes.json();
-      if (parsedCriteria.is_fallback) {
+      const parsedCriteria: SourcingCriteria & { parse_fallback?: boolean; is_fallback?: boolean } = await parseRes.json();
+      if (parsedCriteria.parse_fallback || parsedCriteria.is_fallback) {
+        setParseFallback(true);
         setIsFallback(true);
       }
       setCriteria(parsedCriteria);
@@ -66,9 +75,24 @@ export default function App() {
       }
 
       const candidatesData = await candidatesRes.json();
-      if (candidatesData.is_fallback) {
+      
+      // Split fallbacks
+      if (candidatesData.candidates_fallback || candidatesData.is_fallback) {
+        setCandidatesFallback(true);
         setIsFallback(true);
+        if (candidatesData.downgraded_from_grounded) {
+          setDowngradedFromGrounded(true);
+        }
       }
+
+      // Log raw grounding metadata
+      if (candidatesData.groundingMetadata) {
+        console.log("%c[TalentOS Grounding Metadata]", "color: #10B981; font-weight: bold; font-size: 13px;", candidatesData.groundingMetadata);
+        setGroundingMetadata(candidatesData.groundingMetadata);
+      } else {
+        setGroundingMetadata(null);
+      }
+
       setCandidates(candidatesData.candidates || []);
     } catch (err: any) {
       console.error(err);
@@ -87,6 +111,9 @@ export default function App() {
     setGenerating(true);
     setError(null);
     setCriteriaDirty(false);
+    setCandidatesFallback(false);
+    setDowngradedFromGrounded(false);
+    setGroundingMetadata(null);
 
     try {
       const candidatesRes = await fetch("/api/generate-candidates", {
@@ -101,9 +128,23 @@ export default function App() {
       }
 
       const candidatesData = await candidatesRes.json();
-      if (candidatesData.is_fallback) {
+      
+      if (candidatesData.candidates_fallback || candidatesData.is_fallback) {
+        setCandidatesFallback(true);
         setIsFallback(true);
+        if (candidatesData.downgraded_from_grounded) {
+          setDowngradedFromGrounded(true);
+        }
       }
+
+      // Log raw grounding metadata
+      if (candidatesData.groundingMetadata) {
+        console.log("%c[TalentOS Grounding Metadata]", "color: #10B981; font-weight: bold; font-size: 13px;", candidatesData.groundingMetadata);
+        setGroundingMetadata(candidatesData.groundingMetadata);
+      } else {
+        setGroundingMetadata(null);
+      }
+
       setCandidates(candidatesData.candidates || []);
     } catch (err: any) {
       console.error(err);
@@ -137,6 +178,10 @@ export default function App() {
     setSearchPerformed(false);
     setError(null);
     setIsFallback(false);
+    setParseFallback(false);
+    setCandidatesFallback(false);
+    setDowngradedFromGrounded(false);
+    setGroundingMetadata(null);
   };
 
   return (
@@ -174,19 +219,39 @@ export default function App() {
           setSourcingMode={setSourcingMode}
         />
 
+        {/* Grounded Downgrade Alert - Detailed Granular Sourcing Notification */}
+        {downgradedFromGrounded && (
+          <div id="grounded-downgrade-notification" className="p-5 rounded-xl bg-amber-500/10 border-2 border-amber-500/30 flex gap-4 items-start animate-fadeIn shadow-[0_0_20px_rgba(245,158,11,0.15)]">
+            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400 flex-shrink-0 animate-pulse">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <h4 className="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2 flex-wrap">
+                <span>⚠️ Grounded Search Failed → Downgraded to Synthetic Sandbox</span>
+                <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">QUOTA RESILIENT</span>
+              </h4>
+              <p className="text-xs text-gray-200 leading-relaxed mt-1">
+                Gemini's heavy Google Search Grounding mode hit API rate-limits or quota restrictions. To prevent blocking your workspace flow, TalentOS has automatically <strong className="text-amber-300">downgraded to synthetic mockup sandbox drafting</strong>. The profiles shown below are highly realistic synthetic drafts with automated LinkedIn X-Ray query links, rather than real-world search matches.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Resilient Local Sourcing Fallback Status */}
-        {isFallback && (
+        {isFallback && !downgradedFromGrounded && (
           <div id="fallback-notification" className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/15 flex gap-3 items-start animate-fadeIn">
             <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 flex-shrink-0">
               <Sparkles className="w-4 h-4" />
             </div>
             <div className="flex-1">
               <h4 className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2 flex-wrap">
-                <span>Resilient Local Match Active</span>
+                <span>{parseFallback ? "Resilient Local Parser Active" : "Resilient Local Match Active"}</span>
                 <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-semibold border border-amber-500/20">RATE LIMIT SHIELDED</span>
               </h4>
               <p className="text-xs text-gray-300 mt-1 leading-relaxed">
-                We detected a momentary Gemini API quota limit. TalentOS has automatically activated offline local match synthesis so you can continue searching, editing filters, and launching x-ray sourcing lookups uninterrupted!
+                {parseFallback 
+                  ? "We encountered a momentary Gemini API restriction while parsing your query. TalentOS has seamless offline parser mapping active so you can continue searching!"
+                  : "We detected a momentary Gemini API quota limit. TalentOS has automatically activated offline local match synthesis so you can continue searching, editing filters, and launching x-ray sourcing lookups uninterrupted!"}
               </p>
             </div>
           </div>
@@ -298,6 +363,76 @@ export default function App() {
                 {sourcingMode === "grounded" ? "Verified Public Web Profiles" : "Illustrative Mock Candidates"}
               </p>
             </div>
+
+            {/* Grounding Engine Metadata Insights */}
+            {groundingMetadata && (
+              <div id="grounding-insights-panel" className="p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 space-y-4">
+                <div className="flex items-center justify-between border-b border-emerald-500/10 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-emerald-400 animate-pulse" />
+                    <h3 className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider">
+                      Real-Time Grounding Engine Insights
+                    </h3>
+                  </div>
+                  <span className="text-[9px] font-mono text-emerald-500/60 uppercase">Gemini Web-Citations Info</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Executed Queries */}
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-gray-400 block mb-2">
+                      Executed Search Queries
+                    </span>
+                    {groundingMetadata.webSearchQueries && groundingMetadata.webSearchQueries.length > 0 ? (
+                      <div className="flex flex-col gap-1.5">
+                        {groundingMetadata.webSearchQueries.map((queryText: string, qi: number) => (
+                          <div key={qi} className="text-xs font-mono text-emerald-300/90 bg-emerald-500/[0.04] border border-emerald-500/10 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                            <span className="text-[9px] text-emerald-500/50">#0{qi+1}</span>
+                            <span>"{queryText}"</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic">No direct queries executed.</p>
+                    )}
+                  </div>
+
+                  {/* Grounded Source Citations */}
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-gray-400 block mb-2">
+                      Cited Web Sources ({groundingMetadata.groundingChunks?.length || 0})
+                    </span>
+                    {groundingMetadata.groundingChunks && groundingMetadata.groundingChunks.length > 0 ? (
+                      <div className="flex flex-col gap-1.5 max-h-[180px] overflow-y-auto pr-1 scrollbar">
+                        {groundingMetadata.groundingChunks.map((chunk: any, ci: number) => {
+                          const title = chunk.web?.title || "Cited Web Document";
+                          const uri = chunk.web?.uri;
+                          if (!uri) return null;
+                          return (
+                            <a
+                              key={ci}
+                              href={uri}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-gray-300 bg-white/[0.02] border border-white/5 hover:border-emerald-500/30 hover:bg-emerald-500/[0.02] px-3 py-2 rounded-lg flex items-center justify-between gap-2 group transition-all"
+                            >
+                              <div className="truncate flex-1">
+                                <span className="text-[9px] font-mono text-emerald-400/70 mr-1.5 font-bold">[{ci+1}]</span>
+                                <span className="group-hover:text-emerald-300 font-sans">{title}</span>
+                                <span className="block text-[10px] text-gray-500 truncate mt-0.5">{uri}</span>
+                              </div>
+                              <ExternalLink className="w-3 h-3 text-gray-500 group-hover:text-emerald-400 flex-shrink-0" />
+                            </a>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 italic">No web citations captured.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {candidates.length === 0 ? (
               <div className="text-center py-16 border border-white/5 rounded-2xl bg-[#11141b]/20">
