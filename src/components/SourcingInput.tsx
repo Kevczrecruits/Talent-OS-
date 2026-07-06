@@ -1,12 +1,14 @@
 import React, { useState } from "react";
-import { Search, Sparkles, ChevronDown, ChevronUp, Sliders, CornerDownLeft } from "lucide-react";
+import { Search, Sparkles, ChevronDown, ChevronUp, Sliders, CornerDownLeft, Globe } from "lucide-react";
 import ModelSelector from "./ModelSelector";
 
 interface SourcingInputProps {
-  onSearch: (query: string, criteria: string, model: string) => void;
+  onSearch: (query: string, criteria: string, model: string, mode: "synthetic" | "grounded") => void;
   loading: boolean;
   selectedModel: string;
   setSelectedModel: (model: string) => void;
+  sourcingMode: "synthetic" | "grounded";
+  setSourcingMode: (mode: "synthetic" | "grounded") => void;
 }
 
 const EXAMPLE_QUERIES = [
@@ -32,7 +34,14 @@ const EXAMPLE_QUERIES = [
   }
 ];
 
-export default function SourcingInput({ onSearch, loading, selectedModel, setSelectedModel }: SourcingInputProps) {
+export default function SourcingInput({
+  onSearch,
+  loading,
+  selectedModel,
+  setSelectedModel,
+  sourcingMode,
+  setSourcingMode
+}: SourcingInputProps) {
   const [query, setQuery] = useState("");
   const [hiringCriteria, setHiringCriteria] = useState("");
   const [showExtraCriteria, setShowExtraCriteria] = useState(false);
@@ -40,7 +49,7 @@ export default function SourcingInput({ onSearch, loading, selectedModel, setSel
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || loading) return;
-    onSearch(query.trim(), hiringCriteria.trim(), selectedModel);
+    onSearch(query.trim(), hiringCriteria.trim(), selectedModel, sourcingMode);
   };
 
   const handleExampleClick = (example: typeof EXAMPLE_QUERIES[0]) => {
@@ -54,7 +63,7 @@ export default function SourcingInput({ onSearch, loading, selectedModel, setSel
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (query.trim() && !loading) {
-        onSearch(query.trim(), hiringCriteria.trim(), selectedModel);
+        onSearch(query.trim(), hiringCriteria.trim(), selectedModel, sourcingMode);
       }
     }
   };
@@ -68,18 +77,60 @@ export default function SourcingInput({ onSearch, loading, selectedModel, setSel
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-[#00F0FF] animate-pulse shadow-[0_0_8px_#00F0FF]" />
-            <span className="text-[10px] uppercase tracking-widest font-mono text-[#00F0FF]">AI Agent Sourcing Engine</span>
+            <div className={`w-2.5 h-2.5 rounded-full animate-pulse shadow-[0_0_8px_rgba(0,240,255,0.5)] ${sourcingMode === "grounded" ? "bg-emerald-400" : "bg-[#00F0FF]"}`} />
+            <span className="text-[10px] uppercase tracking-widest font-mono text-gray-400">
+              Sourcing Channel: <span className={sourcingMode === "grounded" ? "text-emerald-400" : "text-[#00F0FF]"}>{sourcingMode === "grounded" ? "Live Grounding" : "Mock Sandbox"}</span>
+            </span>
           </div>
           <h1 className="font-display font-bold text-2xl md:text-3xl text-white mt-1 tracking-tight">
             TalentOS <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] to-[#0072FF]">Search</span>
           </h1>
           <p className="text-xs text-gray-400 mt-1 font-sans">
-            Describe who you're looking for. Search across synthetic talent profiles.
+            Describe who you're looking for. Search across synthetic or real-world web talent profiles.
           </p>
         </div>
         <div className="self-end sm:self-start">
           <ModelSelector selectedModel={selectedModel} onChange={setSelectedModel} />
+        </div>
+      </div>
+
+      {/* Sourcing Mode Switcher */}
+      <div className="mb-6 flex flex-col md:flex-row gap-3 items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
+        <div className="text-xs text-gray-400 font-sans text-center md:text-left">
+          {sourcingMode === "synthetic" ? (
+            <span>🚀 Generates realistic <strong>sandbox candidate blueprints</strong> for concept testing. Includes Google X-Ray query links.</span>
+          ) : (
+            <span>🌐 Performs <strong>real-time Google Searches</strong> to retrieve existing experts, public profiles, and live web source links.</span>
+          )}
+        </div>
+        
+        <div className="bg-[#0e1015]/60 p-1 rounded-xl border border-white/5 flex gap-1.5 w-full md:w-auto self-stretch md:self-auto flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setSourcingMode("synthetic")}
+            disabled={loading}
+            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium tracking-wide transition-all duration-300 cursor-pointer ${
+              sourcingMode === "synthetic"
+                ? "bg-gradient-to-r from-[#00F0FF]/15 to-[#0072FF]/15 text-[#00F0FF] border border-[#00F0FF]/30 shadow-[0_0_15px_rgba(0,240,255,0.1)] font-semibold"
+                : "text-gray-400 hover:text-white border border-transparent"
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Sandbox Synthesis</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSourcingMode("grounded")}
+            disabled={loading}
+            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium tracking-wide transition-all duration-300 cursor-pointer ${
+              sourcingMode === "grounded"
+                ? "bg-gradient-to-r from-emerald-500/15 to-teal-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)] font-semibold"
+                : "text-gray-400 hover:text-white border border-transparent"
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Live Discovery</span>
+          </button>
         </div>
       </div>
 
@@ -91,7 +142,7 @@ export default function SourcingInput({ onSearch, loading, selectedModel, setSel
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="e.g., PhDs in distributed systems from University of Waterloo, 5+ years, RDMA/RoCEv2 background..."
+            placeholder={sourcingMode === "grounded" ? "Describe specific real profiles, papers, or researchers (e.g. distributed systems professors at Waterloo, Co-authors of RDMA/RoCEv2 protocols)" : "e.g., PhDs in distributed systems from University of Waterloo, 5+ years, RDMA/RoCEv2 background..."}
             disabled={loading}
             rows={3}
             className="w-full bg-[#0e1015]/85 text-sm text-gray-100 placeholder-gray-500 rounded-xl border border-white/10 focus:border-[#00F0FF] focus:outline-none focus:ring-1 focus:ring-[#00F0FF]/30 p-4 pr-12 transition-all font-sans resize-none scrollbar"
@@ -101,7 +152,7 @@ export default function SourcingInput({ onSearch, loading, selectedModel, setSel
             <CornerDownLeft className="w-3 h-3" />
           </div>
           <div className="absolute right-4 top-4 text-gray-500">
-            <Search className={`w-4.5 h-4.5 ${query.trim() ? "text-[#00F0FF]" : "text-gray-600"} transition-colors`} />
+            <Search className={`w-4.5 h-4.5 ${query.trim() ? (sourcingMode === "grounded" ? "text-emerald-400" : "text-[#00F0FF]") : "text-gray-600"} transition-colors`} />
           </div>
         </div>
 
@@ -160,18 +211,20 @@ export default function SourcingInput({ onSearch, loading, selectedModel, setSel
               ? "bg-[#00F0FF]/10 text-[#00F0FF]/50 border border-[#00F0FF]/10 cursor-not-allowed"
               : !query.trim()
               ? "bg-white/5 text-gray-500 border border-white/5 cursor-not-allowed"
+              : sourcingMode === "grounded"
+              ? "bg-gradient-to-r from-emerald-400 to-teal-500 text-black hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:brightness-110 active:scale-[0.99]"
               : "bg-gradient-to-r from-[#00F0FF] to-[#0072FF] text-black hover:shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:brightness-110 active:scale-[0.99]"
           }`}
         >
           {loading ? (
             <>
-              <div className="w-4 h-4 border-2 border-t-transparent border-[#00F0FF] rounded-full animate-spin" />
-              <span>Sourcing & Synthesizing Talent Profiles...</span>
+              <div className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${sourcingMode === "grounded" ? "border-emerald-400" : "border-[#00F0FF]"}`} />
+              <span>{sourcingMode === "grounded" ? "Performing Google Search Grounding & Extracting Profiles..." : "Sourcing & Synthesizing Talent Profiles..."}</span>
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4 fill-black/20" />
-              <span>Search Profiles</span>
+              {sourcingMode === "grounded" ? <Globe className="w-4 h-4" /> : <Sparkles className="w-4 h-4 fill-black/20" />}
+              <span>{sourcingMode === "grounded" ? "Perform Live Sourcing Search" : "Search Profiles"}</span>
             </>
           )}
         </button>

@@ -7,8 +7,10 @@ import { SourcingCriteria, Candidate } from "./types";
 
 export default function App() {
   const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash");
+  const [sourcingMode, setSourcingMode] = useState<"synthetic" | "grounded">("synthetic");
   const [criteria, setCriteria] = useState<SourcingCriteria | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [isFallback, setIsFallback] = useState(false);
   
   // Sourcing loading indicators
   const [loading, setLoading] = useState(false);
@@ -21,13 +23,14 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   // Core search triggers both Parsing & Sourcing in sequence
-  const handleFullSearch = async (query: string, hiringCriteria: string, model: string) => {
+  const handleFullSearch = async (query: string, hiringCriteria: string, model: string, mode: "synthetic" | "grounded" = "synthetic") => {
     setLoading(true);
     setParsing(true);
     setGenerating(false);
     setError(null);
     setSearchPerformed(true);
     setCriteriaDirty(false);
+    setIsFallback(false);
 
     try {
       // Step 1: Query parser call
@@ -42,7 +45,10 @@ export default function App() {
         throw new Error(errData.error || "Failed to parse natural language query into recruitment criteria.");
       }
 
-      const parsedCriteria: SourcingCriteria = await parseRes.json();
+      const parsedCriteria: SourcingCriteria & { is_fallback?: boolean } = await parseRes.json();
+      if (parsedCriteria.is_fallback) {
+        setIsFallback(true);
+      }
       setCriteria(parsedCriteria);
       setParsing(false);
       setGenerating(true);
@@ -51,7 +57,7 @@ export default function App() {
       const candidatesRes = await fetch("/api/generate-candidates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ criteria: parsedCriteria, model }),
+        body: JSON.stringify({ criteria: parsedCriteria, model, sourcingMode: mode }),
       });
 
       if (!candidatesRes.ok) {
@@ -60,6 +66,9 @@ export default function App() {
       }
 
       const candidatesData = await candidatesRes.json();
+      if (candidatesData.is_fallback) {
+        setIsFallback(true);
+      }
       setCandidates(candidatesData.candidates || []);
     } catch (err: any) {
       console.error(err);
@@ -83,7 +92,7 @@ export default function App() {
       const candidatesRes = await fetch("/api/generate-candidates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ criteria, model: selectedModel }),
+        body: JSON.stringify({ criteria, model: selectedModel, sourcingMode }),
       });
 
       if (!candidatesRes.ok) {
@@ -92,6 +101,9 @@ export default function App() {
       }
 
       const candidatesData = await candidatesRes.json();
+      if (candidatesData.is_fallback) {
+        setIsFallback(true);
+      }
       setCandidates(candidatesData.candidates || []);
     } catch (err: any) {
       console.error(err);
@@ -124,6 +136,7 @@ export default function App() {
     setCriteriaDirty(false);
     setSearchPerformed(false);
     setError(null);
+    setIsFallback(false);
   };
 
   return (
@@ -157,7 +170,27 @@ export default function App() {
           loading={loading}
           selectedModel={selectedModel}
           setSelectedModel={setSelectedModel}
+          sourcingMode={sourcingMode}
+          setSourcingMode={setSourcingMode}
         />
+
+        {/* Resilient Local Sourcing Fallback Status */}
+        {isFallback && (
+          <div id="fallback-notification" className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/15 flex gap-3 items-start animate-fadeIn">
+            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 flex-shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2 flex-wrap">
+                <span>Resilient Local Match Active</span>
+                <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-semibold border border-amber-500/20">RATE LIMIT SHIELDED</span>
+              </h4>
+              <p className="text-xs text-gray-300 mt-1 leading-relaxed">
+                We detected a momentary Gemini API quota limit. TalentOS has automatically activated offline local match synthesis so you can continue searching, editing filters, and launching x-ray sourcing lookups uninterrupted!
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Error Handling State */}
         {error && (
@@ -217,12 +250,14 @@ export default function App() {
                 </div>
               </div>
               <h3 className="text-sm font-mono uppercase tracking-widest text-white mt-6">
-                {parsing ? "Parsing Recruiter Intention..." : "Synthesizing Scarcity Talent..."}
+                {parsing ? "Parsing Recruiter Intention..." : sourcingMode === "grounded" ? "Searching Live Web Directories..." : "Synthesizing Scarcity Talent..."}
               </h3>
               <p className="text-xs text-gray-500 mt-2 max-w-sm">
                 {parsing
                   ? `Analyzing the query using ${selectedModel} to generate structured constraints and technological filters.`
-                  : "Molding 6-8 synthetic candidate profiles fitting your custom skills, location, and seniority vectors."}
+                  : sourcingMode === "grounded"
+                  ? "Sourcing, validating, and extracting real public profiles and academic/professional links matching your parameters."
+                  : "Molding 6-8 synthetic candidate blueprints fitting your custom skills, location, and seniority vectors."}
               </p>
             </div>
 
@@ -253,14 +288,14 @@ export default function App() {
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <div className="flex items-center gap-2">
                 <h2 className="font-display font-bold text-lg text-white">
-                  Synthesized Sourcing Results
+                  {sourcingMode === "grounded" ? "Live Grounded Search Results" : "Synthesized Sourcing Results"}
                 </h2>
-                <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-gray-400">
+                <span className={`text-xs font-mono px-2 py-0.5 rounded-full bg-white/5 border text-gray-400 ${sourcingMode === "grounded" ? "border-emerald-500/20 text-emerald-400" : "border-white/10"}`}>
                   {candidates.length} Profiles
                 </span>
               </div>
               <p className="text-[10px] text-gray-500 font-mono">
-                Illustrative Mock Candidates
+                {sourcingMode === "grounded" ? "Verified Public Web Profiles" : "Illustrative Mock Candidates"}
               </p>
             </div>
 

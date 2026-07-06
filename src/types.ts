@@ -19,4 +19,7 @@ export interface Candidate {
   years_of_experience: string;
   summary: string;
   ai_match_note: string;
+  web_link?: string;
+  search_query_url?: string;
+  is_synthetic?: boolean;
 }
