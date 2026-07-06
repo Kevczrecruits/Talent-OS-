@@ -1,0 +1,6 @@
+{
+  "name": "TalentOS Search",
+  "description": "A recruiter sourcing tool with a natural-language search bar powered by the Gemini API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
