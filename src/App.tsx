@@ -306,14 +306,14 @@ export default function App() {
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <div className="flex items-center gap-2">
                 <h2 className="font-display font-bold text-lg text-white">
-                  Live Grounded Search Results
+                  {isFallback ? "Local Placeholder Results" : "Live Grounded Search Results"}
                 </h2>
-                <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-white/5 border border-emerald-500/20 text-emerald-400">
+                <span className={`text-xs font-mono px-2 py-0.5 rounded-full bg-white/5 border ${isFallback ? "border-amber-500/20 text-amber-400" : "border-emerald-500/20 text-emerald-400"}`}>
                   {candidates.length} Profiles
                 </span>
               </div>
               <p className="text-[10px] text-gray-500 font-mono">
-                Verified Public Web Profiles
+                {isFallback ? "Not Verified — Fabricated Locally" : "Verified Public Web Profiles"}
               </p>
             </div>
 
