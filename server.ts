@@ -95,7 +95,6 @@ function parseQueryLocally(query: string, hiringCriteria: string) {
     education_signals,
     diversity_or_demographic_filters: "None specified",
     other_notes: "Processed via local fallback intelligence engine.",
-    parse_fallback: true,
     is_fallback: true
   };
 }
@@ -183,7 +182,6 @@ function generateCandidatesLocally(criteria: any, sourcingMode: string) {
 
   return {
     candidates: results,
-    candidates_fallback: true,
     is_fallback: true
   };
 }
@@ -272,20 +270,12 @@ Parse this query into structured recruiting filters. Ensure all arrays are popul
       }
 
       const parsedJSON = JSON.parse(response.text.trim());
-      res.json({
-        ...parsedJSON,
-        parse_fallback: false,
-        is_fallback: false
-      });
+      res.json(parsedJSON);
     } catch (error: any) {
-      console.log("[Resilience] Using local fallback query parser (reason: API rate limit or offline)");
+      console.warn("Gemini API Parse failed, executing local fallback parser: ", error.message || error);
       // Seamlessly execute local high-fidelity parsing
       const fallbackResult = parseQueryLocally(query || "", hiringCriteria || "");
-      res.json({
-        ...fallbackResult,
-        parse_fallback: true,
-        is_fallback: true
-      });
+      res.json(fallbackResult);
     }
   });
 
@@ -299,50 +289,62 @@ Parse this query into structured recruiting filters. Ensure all arrays are popul
 
       const client = getGeminiClient();
       const modelName = model || "gemini-3.5-flash";
-      const isGrounded = sourcingMode === "grounded";
 
-      let systemInstruction = "";
-      let prompt = "";
-      let toolsConfig: any = undefined;
-
-      if (isGrounded) {
-        systemInstruction = `You are an elite, live internet-grounded talent sourcing intelligence agent. Your job is to perform a Google Search to locate actual, real-world, verifiable professionals, researchers, academic specialists, or engineers matching these sourcing criteria.
+      // ==========================================
+      // Two-call "ground, then structure" pattern.
+      // Gemini's API rejects googleSearch + responseSchema in a single
+      // call (400 "controlled generation is not supported with
+      // google_search tool"), so we run a free-text grounded search
+      // first, capture the real citations, then reformat into schema
+      // in a second, tool-free call.
+      // ==========================================
+      const groundedSystemInstruction = `You are an elite, live internet-grounded talent sourcing intelligence agent. Use Google Search to locate actual, real-world, verifiable professionals, researchers, academic specialists, or engineers matching the given sourcing criteria.
 Locate real people with profiles on public sites like LinkedIn, GitHub, Google Scholar, university staff directories, or enterprise bio pages.
-For each matching candidate found:
-1. Provide their accurate name, current title/affiliation, company or university, and geographical location.
-2. Provide a valid 'web_link' to their actual public page (e.g., their public LinkedIn profile, university profile, GitHub page, or Google Scholar page) discovered via Google search.
-3. Provide a 'search_query_url' which is a pre-crafted Google Search query to find them on LinkedIn, formatted as: https://www.google.com/search?q=site:linkedin.com/in/+%22[Firstname]+[Lastname]%22+AND+%22[Company_or_University]%22
-4. Set 'is_synthetic' to false.
-Ensure you write a detailed, highly relevant 'ai_match_note' explaining how their actual background matches the sourcing filters perfectly.
-Do not output any markdown fences, preambles, or conversational text. Output strictly a JSON object matching the requested schema.`;
+For each matching candidate found, write out in plain text: their accurate name, current title/affiliation, company or university, geographical location, top skills, years of experience, a short summary, an explanation of why they match, and the exact URL of the public page where you found them.
+List 6-8 candidates. Be explicit and factual — only include people you actually found evidence of via search. If you cannot verify enough real candidates, say so plainly rather than inventing anyone.`;
 
-        prompt = `Perform a google search and find 6-8 real candidates (academic researchers, enterprise experts, or engineers) that match these recruitment filters:
-${JSON.stringify(criteria, null, 2)}
-
-Ensure the returned candidates are real individuals with valid direct links where possible.`;
-        
-        // Enable Google Search Grounding tool
-        toolsConfig = [{ googleSearch: {} }];
-      } else {
-        systemInstruction = `You are a premium, professional AI talent sourcing agent. Your task is to generate 6 to 8 realistic but strictly synthetic, fictional candidate profiles matching the provided recruiting filters.
-These candidates will be used for UI prototyping and concept verification. Avoid generic placeholder names; generate realistic candidate profiles of people who would live in the specified locations and work at actual top-tier tech/fintech/infrastructure companies.
-For each synthetic candidate:
-1. Set 'is_synthetic' to true.
-2. Set 'web_link' to a general LinkedIn search URL for matching professionals (e.g., https://www.linkedin.com/pub/dir?first=&last=).
-3. Set 'search_query_url' to a crafted Google X-Ray search query that would find real candidates matching this specific persona (e.g., https://www.google.com/search?q=site:linkedin.com/in/+%22[Title]%22+AND+%22[Location]%22+AND+(%22[Skill1]%22+OR+%22[Skill2]%22)).
-Ensure you provide a creative 'ai_match_note' describing how their fictional qualifications line up with the filters.
-Do not output any markdown fences or conversational text. Output strictly a JSON object matching the requested schema.`;
-
-        prompt = `Generate 6-8 synthetic candidate profiles for UI testing that fit the following criteria:
+      const groundedPrompt = `Search the web and find real candidates (academic researchers, enterprise experts, or engineers) that match these recruitment filters:
 ${JSON.stringify(criteria, null, 2)}`;
+
+      const groundedResponse = await client.models.generateContent({
+        model: modelName,
+        contents: groundedPrompt,
+        config: {
+          systemInstruction: groundedSystemInstruction,
+          tools: [{ googleSearch: {} }],
+        },
+      });
+
+      if (!groundedResponse.text) {
+        throw new Error("No grounded response received from Gemini.");
       }
+
+      // Pull real citations out of grounding metadata so the structuring
+      // step is anchored to actual sources rather than invented links.
+      const groundingChunks =
+        groundedResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      const realSources = groundingChunks
+        .map((c: any) => c?.web?.uri && c?.web?.title ? `${c.web.title}: ${c.web.uri}` : null)
+        .filter(Boolean);
+
+      // Second call: reformat the grounded findings into strict JSON.
+      // No tools here, so responseSchema is allowed.
+      const structureSystemInstruction = `You reformat already-researched, real candidate findings into strict JSON matching the given schema. Do not invent, alter, or embellish any facts, names, or links beyond what is provided in the source text below. If a 'web_link' was given in the source text, use it exactly. Set 'is_synthetic' to false for every candidate, since these are real, search-verified people. Do not output markdown fences or commentary — JSON only.`;
+
+      const structurePrompt = `Here are real candidate findings from a live Google Search:
+
+${groundedResponse.text}
+
+Real source links discovered during search (use these for web_link/search_query_url where they match a candidate; do not fabricate a link if none is available):
+${realSources.length ? realSources.join("\n") : "(no explicit source links captured)"}
+
+Convert the above into the required JSON schema, one entry per candidate found. If fewer than 6 real candidates were found, only return the ones that are real — do not pad with invented people.`;
 
       const response = await client.models.generateContent({
         model: modelName,
-        contents: prompt,
+        contents: structurePrompt,
         config: {
-          systemInstruction,
-          tools: toolsConfig,
+          systemInstruction: structureSystemInstruction,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -352,108 +354,52 @@ ${JSON.stringify(criteria, null, 2)}`;
                 items: {
                   type: Type.OBJECT,
                   properties: {
-                    name: { type: Type.STRING, description: "Full name" },
-                    title: { type: Type.STRING, description: "Current professional title" },
-                    company: { type: Type.STRING, description: "Current company" },
-                    location: { type: Type.STRING, description: "Geographical location" },
-                    top_skills: {
-                      type: Type.ARRAY,
-                      items: { type: Type.STRING },
-                      description: "List of 3 top relevant skills"
-                    },
-                    years_of_experience: { type: Type.STRING, description: "Years of experience" },
-                    summary: { type: Type.STRING, description: "1-line professional resume summary/elevator pitch" },
-                    ai_match_note: { type: Type.STRING, description: "Custom note explaining why this person matches the parsed parameters perfectly" },
-                    web_link: { type: Type.STRING, description: "Direct URL to their public profile or professional page (LinkedIn, GitHub, university/lab portal) discovered via search grounding, or a general relevant search directory link." },
-                    search_query_url: { type: Type.STRING, description: "A Google Search query URL designed to instantly retrieve matching public LinkedIn/web bios for this profile/persona." },
-                    is_synthetic: { type: Type.BOOLEAN, description: "True if this candidate profile is a synthetic demo; False if it is a real grounded person." }
+                    name: { type: Type.STRING },
+                    title: { type: Type.STRING },
+                    company: { type: Type.STRING },
+                    location: { type: Type.STRING },
+                    top_skills: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    years_of_experience: { type: Type.STRING },
+                    summary: { type: Type.STRING },
+                    ai_match_note: { type: Type.STRING },
+                    web_link: { type: Type.STRING },
+                    search_query_url: { type: Type.STRING },
+                    is_synthetic: { type: Type.BOOLEAN },
                   },
                   required: [
-                    "name",
-                    "title",
-                    "company",
-                    "location",
-                    "top_skills",
-                    "years_of_experience",
-                    "summary",
-                    "ai_match_note",
-                    "web_link",
-                    "search_query_url",
-                    "is_synthetic"
-                  ]
-                }
-              }
+                    "name", "title", "company", "location", "top_skills",
+                    "years_of_experience", "summary", "ai_match_note",
+                    "web_link", "search_query_url", "is_synthetic",
+                  ],
+                },
+              },
             },
-            required: ["candidates"]
-          }
-        }
+            required: ["candidates"],
+          },
+        },
       });
 
       if (!response.text) {
-        throw new Error("No response received from Gemini.");
+        throw new Error("No response received from Gemini structuring call.");
       }
 
       const parsedJSON = JSON.parse(response.text.trim());
-      const groundingMetadata = response.candidates?.[0]?.groundingMetadata || null;
-
-      res.json({
-        candidates: parsedJSON.candidates || [],
-        groundingMetadata,
-        candidates_fallback: false,
-        is_fallback: false,
-        downgraded_from_grounded: false
-      });
+      // Tag with real grounding sources so the frontend can show "verified via search".
+      res.json({ ...parsedJSON, is_fallback: false, grounded_sources: realSources });
     } catch (error: any) {
-      console.log("[Resilience] Using local fallback candidate generator (reason: API rate limit or offline)");
+      const message = error?.message || String(error);
+      const isRateLimit = message.includes("429") || message.toLowerCase().includes("resource_exhausted") || message.toLowerCase().includes("quota");
+      console.warn(
+        `Gemini API Candidate Generation failed (mode=${sourcingMode}, rateLimit=${isRateLimit}), executing local fallback engine: `,
+        message
+      );
       // Seamlessly execute local high-fidelity generator
       const fallbackResult = generateCandidatesLocally(criteria, sourcingMode || "synthetic");
       res.json({
-        candidates: fallbackResult.candidates || [],
-        candidates_fallback: true,
-        is_fallback: true,
-        downgraded_from_grounded: sourcingMode === "grounded"
+        ...fallbackResult,
+        fallback_reason: isRateLimit ? "rate_limit" : "api_error",
+        was_grounded_attempted: sourcingMode === "grounded",
       });
-    }
-  });
-
-  // 3. Link Verification API
-  app.post("/api/verify-link", async (req, res) => {
-    const { url } = req.body;
-    if (!url) {
-      return res.status(400).json({ error: "URL is required" });
-    }
-
-    try {
-      // Create an AbortController for a 3-second timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.5"
-        },
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      const status = response.status;
-      if (status === 200) {
-        res.json({ verified: true, status: "reachable", code: 200 });
-      } else if (status === 999 || status === 429) {
-        // LinkedIn custom anti-scraping / too many requests code is typically 999 or 429
-        res.json({ verified: true, status: "rate_limited", code: status, message: "Host rate limits automated checks, but connection is valid." });
-      } else if (status === 404) {
-        res.json({ verified: false, status: "not_found", code: 404 });
-      } else {
-        res.json({ verified: true, status: "unknown", code: status });
-      }
-    } catch (error: any) {
-      console.warn("Link verification failed for URL:", url, "-", error.message || error);
-      res.json({ verified: false, status: "error", error: error.message || "Timeout or network error" });
     }
   });
 
