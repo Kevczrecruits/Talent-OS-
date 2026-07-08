@@ -75,14 +75,14 @@ export default function SourcingInput({
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)] bg-emerald-400" />
             <span className="text-[10px] uppercase tracking-widest font-mono text-gray-400">
-              Sourcing Channel: <span className="text-emerald-400">Live Grounding</span>
+              Sourcing Channel: <span className="text-emerald-400">Live Multi-Source Search</span>
             </span>
           </div>
           <h1 className="font-display font-bold text-2xl md:text-3xl text-white mt-1 tracking-tight">
             TalentOS <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] to-[#0072FF]">Search</span>
           </h1>
           <p className="text-xs text-gray-400 mt-1 font-sans">
-            Describe who you're looking for. Every search runs a real, live Google Search grounding call.
+            Describe who you're looking for. Every search runs real, live queries across LinkedIn, academic sources (Scholar/arXiv), and GitHub.
           </p>
         </div>
         <div className="self-end sm:self-start">
@@ -94,7 +94,7 @@ export default function SourcingInput({
       <div className="mb-6 flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
         <Globe className="w-4 h-4 text-emerald-400 flex-shrink-0" />
         <div className="text-xs text-gray-400 font-sans">
-          Performs a <strong className="text-emerald-400">real-time Google Search</strong> to retrieve existing experts, public profiles, and live web source links. No mock/sandbox data is generated.
+          Runs <strong className="text-emerald-400">real, live searches across LinkedIn, academic sources (Google Scholar / arXiv / Semantic Scholar), and GitHub</strong> in parallel to find real experts, public profiles, and live web source links. No mock/sandbox data is generated.
         </div>
       </div>
 
@@ -181,7 +181,7 @@ export default function SourcingInput({
           {loading ? (
             <>
               <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin border-emerald-400" />
-              <span>Performing Google Search Grounding & Extracting Profiles...</span>
+              <span>Searching LinkedIn, Academic & GitHub Sources & Extracting Profiles...</span>
             </>
           ) : (
             <>
