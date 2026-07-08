@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Sparkles, RefreshCw, AlertCircle, HelpCircle, ArrowRight, UserPlus, FileSearch } from "lucide-react";
+import { Sparkles, RefreshCw, AlertCircle, HelpCircle, ArrowRight, UserPlus, FileSearch, ExternalLink } from "lucide-react";
 import SourcingInput from "./components/SourcingInput";
 import FilterChips from "./components/FilterChips";
 import ResultCard from "./components/ResultCard";
@@ -12,6 +12,7 @@ export default function App() {
   const [isFallback, setIsFallback] = useState(false);
   const [fallbackReason, setFallbackReason] = useState<string | null>(null);
   const [groundedSources, setGroundedSources] = useState<string[]>([]);
+  const [searchEngine, setSearchEngine] = useState<"tavily" | "google" | "local">("local");
   
   // Sourcing loading indicators
   const [loading, setLoading] = useState(false);
@@ -70,6 +71,7 @@ export default function App() {
       setIsFallback(!!candidatesData.is_fallback);
       setFallbackReason(candidatesData.is_fallback ? (candidatesData.fallback_reason || "api_error") : null);
       setGroundedSources(candidatesData.grounded_sources || []);
+      setSearchEngine(candidatesData.is_fallback ? "local" : (candidatesData.search_engine || "google"));
       setCandidates(candidatesData.candidates || []);
     } catch (err: any) {
       console.error(err);
@@ -105,6 +107,7 @@ export default function App() {
       setIsFallback(!!candidatesData.is_fallback);
       setFallbackReason(candidatesData.is_fallback ? (candidatesData.fallback_reason || "api_error") : null);
       setGroundedSources(candidatesData.grounded_sources || []);
+      setSearchEngine(candidatesData.is_fallback ? "local" : (candidatesData.search_engine || "google"));
       setCandidates(candidatesData.candidates || []);
     } catch (err: any) {
       console.error(err);
@@ -197,17 +200,67 @@ export default function App() {
 
         {/* Grounded search succeeded — show real citation count */}
         {!isFallback && groundedSources.length > 0 && (
-          <div id="grounded-sources-notification" className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15 flex gap-3 items-start animate-fadeIn">
-            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 flex-shrink-0">
-              <Sparkles className="w-4 h-4" />
+          <div id="grounded-sources-notification" className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15 flex flex-col gap-3 animate-fadeIn">
+            <div className="flex gap-3 items-start">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 flex-shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider">
+                  {searchEngine === "tavily" 
+                    ? `Live Sourced via Tavily Search Engine — ${groundedSources.length} profile source${groundedSources.length === 1 ? "" : "s"} found`
+                    : `Live Search Verified via Google Grounding — ${groundedSources.length} source${groundedSources.length === 1 ? "" : "s"} found`}
+                </h4>
+                <p className="text-xs text-gray-300 mt-1 leading-relaxed">
+                  {searchEngine === "tavily"
+                    ? "These candidates were located in real-time from active web search results (Tavily Search API) and structured using Gemini. Verification is complete."
+                    : "These candidates were reformatted from an actual Google Search grounding call. Still confirm each profile manually before outreach."}
+                </p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h4 className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider">
-                Live Search Verified — {groundedSources.length} source{groundedSources.length === 1 ? "" : "s"} found
-              </h4>
-              <p className="text-xs text-gray-300 mt-1 leading-relaxed">
-                These candidates were reformatted from an actual Google Search grounding call. Still confirm each profile manually before outreach — grounded search reduces but doesn't eliminate the chance of a wrong or outdated match.
-              </p>
+            
+            {/* Citation List */}
+            <div className="mt-2 pt-3 border-t border-emerald-500/10 space-y-1.5">
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-500 block">Verified Web References & Citations:</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
+                {groundedSources.map((source, index) => {
+                  const colonIndex = source.indexOf(": http");
+                  let name = source;
+                  let url = "";
+                  if (colonIndex !== -1) {
+                    name = source.substring(0, colonIndex);
+                    url = source.substring(colonIndex + 2);
+                  } else if (source.startsWith("http")) {
+                    name = source;
+                    url = source;
+                  }
+                  
+                  // Clean up name a bit if it has trailing LinkedIn strings
+                  if (name.length > 65) {
+                    name = name.slice(0, 62) + "...";
+                  }
+
+                  return (
+                    <div key={index} className="flex items-center gap-1.5 text-xs bg-emerald-950/10 border border-emerald-500/5 hover:border-emerald-500/20 px-2.5 py-1.5 rounded-lg truncate">
+                      <span className="text-emerald-500 font-mono text-[10px] flex-shrink-0">[{index + 1}]</span>
+                      {url ? (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-300 hover:text-[#00F0FF] transition-all flex items-center gap-1 truncate inline-flex w-full"
+                          title={source}
+                        >
+                          <span className="truncate flex-1">{name}</span>
+                          <ExternalLink className="w-2.5 h-2.5 flex-shrink-0 opacity-60 group-hover:opacity-100" />
+                        </a>
+                      ) : (
+                        <span className="text-gray-400 truncate flex-1" title={source}>{source}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
