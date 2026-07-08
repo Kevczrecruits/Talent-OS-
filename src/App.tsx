@@ -208,12 +208,12 @@ export default function App() {
               <div className="flex-1">
                 <h4 className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider">
                   {searchEngine === "tavily" 
-                    ? `Live Sourced via Tavily Search Engine — ${groundedSources.length} profile source${groundedSources.length === 1 ? "" : "s"} found`
+                    ? `Live Sourced via LinkedIn, Academic & GitHub Search — ${groundedSources.length} profile source${groundedSources.length === 1 ? "" : "s"} found`
                     : `Live Search Verified via Google Grounding — ${groundedSources.length} source${groundedSources.length === 1 ? "" : "s"} found`}
                 </h4>
                 <p className="text-xs text-gray-300 mt-1 leading-relaxed">
                   {searchEngine === "tavily"
-                    ? "These candidates were located in real-time from active web search results (Tavily Search API) and structured using Gemini. Verification is complete."
+                    ? "These candidates were located in real-time from parallel web searches across LinkedIn, academic sources (Scholar/arXiv), and GitHub, then structured using Gemini. Still confirm each profile manually before outreach."
                     : "These candidates were reformatted from an actual Google Search grounding call. Still confirm each profile manually before outreach."}
                 </p>
               </div>
@@ -359,7 +359,7 @@ export default function App() {
             <div className="flex items-center justify-between border-b border-white/5 pb-2">
               <div className="flex items-center gap-2">
                 <h2 className="font-display font-bold text-lg text-white">
-                  {isFallback ? "Local Placeholder Results" : "Live Grounded Search Results"}
+                  {isFallback ? "Local Placeholder Results" : searchEngine === "tavily" ? "Live Multi-Source Search Results" : "Live Grounded Search Results"}
                 </h2>
                 <span className={`text-xs font-mono px-2 py-0.5 rounded-full bg-white/5 border ${isFallback ? "border-amber-500/20 text-amber-400" : "border-emerald-500/20 text-emerald-400"}`}>
                   {candidates.length} Profiles
@@ -413,8 +413,8 @@ export default function App() {
                 <p className="text-gray-400 text-[11px]">Remove specific chips or edit constraints manually. Results and criteria sync seamlessly.</p>
               </div>
               <div className="p-4 rounded-xl bg-[#11141b]/40 border border-white/5 space-y-1">
-                <div className="text-[#00F0FF] font-mono font-bold text-[10px] uppercase">3. Live Grounding</div>
-                <p className="text-gray-400 text-[11px]">Runs a real Google Search grounding call and returns only verifiable, real candidates with source links.</p>
+                <div className="text-[#00F0FF] font-mono font-bold text-[10px] uppercase">3. Live Multi-Source Search</div>
+                <p className="text-gray-400 text-[11px]">Searches LinkedIn, academic sources, and GitHub in parallel and returns only verifiable, real candidates with source links.</p>
               </div>
             </div>
           </div>
