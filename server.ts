@@ -36,53 +36,122 @@ function parseQueryLocally(query: string, hiringCriteria: string) {
   
   // Extract location
   let location = "Toronto, ON";
-  if (qLower.includes("waterloo")) location = "Waterloo, ON";
-  else if (qLower.includes("vancouver")) location = "Vancouver, BC";
-  else if (qLower.includes("san francisco") || qLower.includes("sf")) location = "San Francisco, CA";
-  else if (qLower.includes("new york") || qLower.includes("ny")) location = "New York, NY";
-  else if (qLower.includes("remote")) location = "Remote";
+  const locationsMap: {[key: string]: string} = {
+    "waterloo": "Waterloo, ON",
+    "vancouver": "Vancouver, BC",
+    "toronto": "Toronto, ON",
+    "montreal": "Montreal, QC",
+    "san francisco": "San Francisco, CA",
+    "sf": "San Francisco, CA",
+    "new york": "New York, NY",
+    "ny": "New York, NY",
+    "boston": "Boston, MA",
+    "seattle": "Seattle, WA",
+    "austin": "Austin, TX",
+    "london": "London, UK",
+    "berlin": "Berlin, Germany",
+    "paris": "Paris, France",
+    "remote": "Remote"
+  };
+  
+  for (const [key, val] of Object.entries(locationsMap)) {
+    if (qLower.includes(key)) {
+      location = val;
+      break;
+    }
+  }
 
-  // Extract role
-  let role = "Software Engineer";
+  // 1. Detect seniority first
+  let seniority = "Senior (5+ years)";
+  if (qLower.includes("phd") || qLower.includes("doctorate") || qLower.includes("doctor") || qLower.includes("postdoc")) {
+    seniority = "Research / PhD Level";
+  } else if (qLower.includes("staff") || qLower.includes("principal")) {
+    seniority = "Staff / Principal (10+ years)";
+  } else if (qLower.includes("junior") || qLower.includes("entry") || qLower.includes("intern")) {
+    seniority = "Junior (1-2 years)";
+  } else if (qLower.includes("mid") || qLower.includes("intermediate")) {
+    seniority = "Intermediate (3-5 years)";
+  }
+
+  // 2. Detect role dynamically
+  let role = "";
+  
+  // Let's check for specific professional roles first
   if (qLower.includes("distributed systems") || qLower.includes("distributed")) {
     role = "Distributed Systems Engineer";
+  } else if (qLower.includes("machine learning") || qLower.includes("ml") || qLower.includes("ai")) {
+    role = qLower.includes("phd") ? "ML Research Scientist" : "Machine Learning Engineer";
   } else if (qLower.includes("frontend") || qLower.includes("ui") || qLower.includes("react")) {
     role = "Frontend Engineer";
-  } else if (qLower.includes("backend") || qLower.includes("node") || qLower.includes("python")) {
+  } else if (qLower.includes("backend") || qLower.includes("node")) {
     role = "Backend Engineer";
-  } else if (qLower.includes("ai") || qLower.includes("ml") || qLower.includes("machine learning") || qLower.includes("researcher")) {
-    role = "ML Research Engineer";
+  } else if (qLower.includes("fullstack") || qLower.includes("full-stack")) {
+    role = "Full-Stack Engineer";
   } else if (qLower.includes("manager") || qLower.includes("director") || qLower.includes("lead")) {
     role = "Engineering Manager";
+  } else if (qLower.includes("phd") || qLower.includes("researcher") || qLower.includes("postdoc")) {
+    role = "PhD Researcher / Scientist";
+  }
+  
+  // If we still don't have a role, try to clean the query and extract a 2-3 word phrase
+  if (!role) {
+    const words = query.split(/\s+/).filter(w => {
+      const lower = w.toLowerCase();
+      return !["in", "at", "for", "with", "a", "an", "the", "phd", "phds", "candidate", "candidates", "in", "toronto", "waterloo", "san", "francisco", "sf", "ny", "new", "york", "remote"].includes(lower);
+    });
+    
+    if (words.length > 0) {
+      role = words.slice(0, 3).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+      if (!role.toLowerCase().includes("engineer") && !role.toLowerCase().includes("developer") && !role.toLowerCase().includes("scientist") && !role.toLowerCase().includes("researcher")) {
+        role += " Engineer";
+      }
+    } else {
+      role = "Software Engineer";
+    }
   }
 
-  // Extract skills
-  const skillsList = ["react", "typescript", "node", "python", "golang", "rust", "kubernetes", "docker", "c++", "rdma", "roce", "grpc", "aws", "gcp", "pytorch", "tensorflow", "distributed systems", "webassembly", "solidity", "sql"];
+  // 3. Extract required skills
+  const skillsList = ["react", "typescript", "node", "python", "golang", "rust", "kubernetes", "docker", "c++", "rdma", "roce", "grpc", "aws", "gcp", "pytorch", "tensorflow", "distributed systems", "webassembly", "solidity", "sql", "cs", "computer science", "artificial intelligence", "deep learning"];
   const required_skills: string[] = [];
+  
   skillsList.forEach(s => {
-    if (qLower.includes(s)) {
-      required_skills.push(s.toUpperCase());
+    const regex = new RegExp(`\\b${s.replace("+", "\\+")}\\b`, 'i');
+    if (regex.test(qLower)) {
+      if (s === "cs" || s === "computer science") {
+        required_skills.push("Computer Science");
+      } else {
+        required_skills.push(s.toUpperCase());
+      }
     }
   });
+  
+  // If no skills matched but they wrote some words, add those words as skills (excluding common English/location words)
   if (required_skills.length === 0) {
-    required_skills.push("Distributed Systems", "Go", "C++");
+    const rawWords = query.toLowerCase().split(/[^\w+]+/).filter(w => {
+      return w.length > 1 && !["in", "at", "for", "with", "phd", "phds", "candidate", "candidates", "toronto", "waterloo", "san", "francisco", "sf", "ny", "new", "york", "remote", "engineer", "scientist", "developer", "researcher", "software", "programmer", "hiring", "looking"].includes(w);
+    });
+    rawWords.slice(0, 3).forEach(w => {
+      required_skills.push(w.charAt(0).toUpperCase() + w.slice(1));
+    });
   }
-
-  // Seniority
-  let seniority = "Senior (5+ years)";
-  if (qLower.includes("junior") || qLower.includes("entry")) seniority = "Junior (1-2 years)";
-  else if (qLower.includes("mid") || qLower.includes("intermediate")) seniority = "Intermediate (3-5 years)";
-  else if (qLower.includes("staff") || qLower.includes("principal")) seniority = "Staff / Principal (10+ years)";
-  else if (qLower.includes("phd") || qLower.includes("postdoc")) seniority = "Research / PhD Level";
+  
+  if (required_skills.length === 0) {
+    required_skills.push("Software Engineering");
+  }
 
   // Education
   const education_signals: string[] = [];
-  if (qLower.includes("phd") || qLower.includes("doctorate")) education_signals.push("PhD in Computer Science");
+  if (qLower.includes("phd") || qLower.includes("doctorate") || qLower.includes("doctor")) {
+    education_signals.push("PhD / Doctoral Studies");
+  }
   if (qLower.includes("waterloo")) education_signals.push("University of Waterloo");
   if (qLower.includes("toronto") || qLower.includes("uoft")) education_signals.push("University of Toronto");
   if (qLower.includes("stanford")) education_signals.push("Stanford University");
+  if (qLower.includes("mit")) education_signals.push("MIT");
+  if (qLower.includes("berkeley")) education_signals.push("UC Berkeley");
+  
   if (education_signals.length === 0) {
-    education_signals.push("BSc/MSc in Computer Science");
+    education_signals.push("BSc / MSc / PhD in Computer Science");
   }
 
   return {
@@ -90,11 +159,11 @@ function parseQueryLocally(query: string, hiringCriteria: string) {
     seniority_level: seniority,
     location,
     required_skills,
-    preferred_skills: ["System Architecture", "High Performance Computing"],
-    industry: "High Tech / Infrastructure",
+    preferred_skills: ["System Architecture", "Research Methodology"],
+    industry: "Technology / Academia",
     education_signals,
     diversity_or_demographic_filters: "None specified",
-    other_notes: "Processed via local fallback intelligence engine.",
+    other_notes: "Processed via adaptive high-fidelity local fallback engine.",
     is_fallback: true
   };
 }
@@ -192,9 +261,42 @@ function isValidProfileUrl(urlStr: string): boolean {
     const hostname = url.hostname.toLowerCase();
     const pathname = url.pathname.toLowerCase();
 
+    // Ignore obvious institutional/advice/guide resources instantly
+    const forbiddenPathKeywords = [
+      "guide", "template", "how-to", "how_to", "how to", "writing", "sample", "example", 
+      "syllabus", "course", "lecture", "workshop", "event", "policy", "handbook", 
+      "services", "career", "resources", "calendar", "jobs", "hiring", "openings", 
+      "apply", "description", "postings", "listings", "program", "curriculum", "outline", 
+      "advice", "tips", "tutorial", "exercise", "assignment", "rubric", "grading", 
+      "student-life", "studentlife", "handout", "manual", "creating-your", "student-success"
+    ];
+    if (forbiddenPathKeywords.some(keyword => pathname.includes(keyword))) {
+      return false;
+    }
+
     // Must be in one of our desired domains
-    const allowedDomains = ["linkedin.com", "github.com", "scholar.google.", "orcid.org", "twitter.com", "x.com", "github.io"];
-    const matchesDomain = allowedDomains.some(d => hostname.includes(d));
+    const allowedDomains = [
+      "linkedin.com", "github.com", "scholar.google.", "orcid.org", "twitter.com", "x.com", "github.io",
+      "researchgate.net", "academia.edu", "semanticscholar.org", "ieee.org"
+    ];
+    
+    let matchesDomain = allowedDomains.some(d => hostname.includes(d));
+    
+    // Also allow academic domains (.edu, .ac.uk, .edu.*, or specific universities)
+    if (!matchesDomain) {
+      if (
+        hostname.endsWith(".edu") || 
+        hostname.includes(".edu.") || 
+        hostname.endsWith(".ac.uk") ||
+        hostname.includes("uwaterloo.ca") ||
+        hostname.includes("utoronto.ca") ||
+        hostname.includes("ubc.ca") ||
+        hostname.includes("mcgill.ca")
+      ) {
+        matchesDomain = true;
+      }
+    }
+    
     if (!matchesDomain) return false;
 
     // LinkedIn individual profile validation
@@ -284,6 +386,43 @@ function isValidProfileUrl(urlStr: string): boolean {
       return segments.length === 1;
     }
 
+    // ResearchGate, Academia, Semantic Scholar validation
+    if (hostname.includes("researchgate.net")) {
+      return pathname.includes("/profile/");
+    }
+    if (hostname.includes("semanticscholar.org")) {
+      return pathname.includes("/author/");
+    }
+
+    // For generic .edu/academic websites, let's make sure it looks like a person's profile/portfolio page
+    // (e.g., contains /~, /people/, /faculty/, /staff/, /profile/, or a name segment, and is not a general index page)
+    if (
+      hostname.endsWith(".edu") || 
+      hostname.includes(".edu.") || 
+      hostname.endsWith(".ac.uk") ||
+      hostname.includes("uwaterloo.ca") ||
+      hostname.includes("utoronto.ca") ||
+      hostname.includes("ubc.ca") ||
+      hostname.includes("mcgill.ca")
+    ) {
+      if (pathname === "/" || pathname === "") return false;
+      
+      const isPeoplePage = 
+        pathname.includes("/~") || 
+        pathname.includes("/people/") || 
+        pathname.includes("/faculty/") || 
+        pathname.includes("/staff/") || 
+        pathname.includes("/profile/") || 
+        pathname.includes("/grad/") ||
+        pathname.includes("/candidate/") ||
+        pathname.includes("/member/") ||
+        pathname.includes("/author/") ||
+        pathname.includes("/researcher/") ||
+        pathname.includes("/bio");
+        
+      return isPeoplePage;
+    }
+
     return false;
   } catch (e) {
     return false;
@@ -302,7 +441,23 @@ function parseTavilyResultsLocally(results: any[], criteria: any): any[] {
     }
     
     const lowerTitle = r.title.toLowerCase();
+    
+    // Ignore results where the title implies resource pages, course slides, or CV templates/guides instead of individuals
+    const forbiddenTitleKeywords = [
+      "guide", "template", "how to", "how-to", "writing", "sample", "example", 
+      "syllabus", "course", "lecture", "workshop", "event", "policy", "handbook", 
+      "resources", "calendar", "jobs matching", "job openings", "hiring", "careers at", 
+      "salary", "job description", "tips", "tutorial", "outline", "advice", "creating", 
+      "curriculum", "office of", "department of", "school of", "university of", "student life", "studentlife",
+      "handout", "manual", "[pdf]"
+    ];
+    if (forbiddenTitleKeywords.some(keyword => lowerTitle.includes(keyword))) {
+      continue;
+    }
+    
     const lowerUrl = r.url.toLowerCase();
+    const urlObj = new URL(r.url);
+    const hostname = urlObj.hostname.toLowerCase();
     
     let name = "";
     let title = criteria.role || "Software Engineer";
@@ -353,17 +508,42 @@ function parseTavilyResultsLocally(results: any[], criteria: any): any[] {
         title = "Developer";
         company = "GitHub";
       }
+    } else if (lowerUrl.includes("scholar.google.")) {
+      const parts = cleanedTitle.split(/\s+[-–|]\s+/);
+      name = parts[0].trim();
+      title = "Researcher / PhD Scholar";
+      company = "Google Scholar Verified";
+    } else if (lowerUrl.includes("researchgate.net")) {
+      const parts = cleanedTitle.split(/\s+[-–|]\s+/);
+      name = parts[0].trim();
+      title = "Research Scientist / Researcher";
+      company = "ResearchGate";
+    } else if (lowerUrl.includes("orcid.org")) {
+      const parts = cleanedTitle.split(/\s+[-–|]\s+/);
+      name = parts[0].trim();
+      title = "Registered Researcher";
+      company = "ORCID";
     } else {
-      // Fallback for general web results
-      const parts = cleanedTitle.split(/\s+[-|]\s+/);
-      if (parts.length >= 1) {
-        name = parts[0].trim();
-      }
+      // Fallback for general web results / university sites
+      const parts = cleanedTitle.split(/\s+[-–|]\s+/);
+      name = parts[0].trim();
       if (parts.length >= 2) {
         title = parts[1].trim();
+      } else {
+        title = criteria.role || "Researcher";
       }
       if (parts.length >= 3) {
         company = parts[2].trim();
+      } else {
+        // Derive university name from domain
+        const domainParts = hostname.split(".");
+        if (domainParts.length >= 2) {
+          const uni = domainParts[domainParts.length - 2];
+          company = uni.charAt(0).toUpperCase() + uni.slice(1);
+          if (hostname.endsWith(".edu")) {
+            company += " University";
+          }
+        }
       }
     }
     
@@ -376,7 +556,7 @@ function parseTavilyResultsLocally(results: any[], criteria: any): any[] {
     const commonSkills = [
       "react", "typescript", "node", "python", "golang", "rust", "kubernetes", "docker", 
       "c++", "aws", "gcp", "pytorch", "tensorflow", "distributed systems", "java", "sql", 
-      "javascript", "c#", "swift", "kotlin", "ruby", "php", "django", "next.js", "vue"
+      "javascript", "c#", "swift", "kotlin", "ruby", "php", "django", "next.js", "vue", "deep learning", "machine learning"
     ];
     const top_skills: string[] = [];
     const lowerContent = summary.toLowerCase();
@@ -391,6 +571,8 @@ function parseTavilyResultsLocally(results: any[], criteria: any): any[] {
         else if (skill === "pytorch") top_skills.push("PyTorch");
         else if (skill === "tensorflow") top_skills.push("TensorFlow");
         else if (skill === "next.js") top_skills.push("Next.js");
+        else if (skill === "deep learning") top_skills.push("Deep Learning");
+        else if (skill === "machine learning") top_skills.push("Machine Learning");
         else top_skills.push(skill.toUpperCase());
       }
     });
@@ -400,7 +582,7 @@ function parseTavilyResultsLocally(results: any[], criteria: any): any[] {
       if (criteria.required_skills && criteria.required_skills.length > 0) {
         top_skills.push(...criteria.required_skills.slice(0, 3));
       } else {
-        top_skills.push("Software Engineering");
+        top_skills.push("Computer Science");
       }
     }
     
@@ -452,13 +634,43 @@ function buildTavilyQuery(criteria: any): string {
   const parts: string[] = [];
   
   if (criteria.role) {
-    parts.push(`"${criteria.role}"`);
+    const roleLower = criteria.role.toLowerCase();
+    // Do not wrap multi-word generated roles in full quotes, as it restricts results excessively.
+    // Instead, wrap known tech phrases in quotes, and leave general role keywords unquoted.
+    if (roleLower.includes("distributed systems")) {
+      parts.push(`"distributed systems"`);
+    } else if (roleLower.includes("machine learning")) {
+      parts.push(`"machine learning"`);
+    } else if (roleLower.includes("deep learning")) {
+      parts.push(`"deep learning"`);
+    } else if (roleLower.includes("computer vision")) {
+      parts.push(`"computer vision"`);
+    } else if (roleLower.includes("natural language")) {
+      parts.push(`"natural language processing"`);
+    } else {
+      parts.push(criteria.role.replace(/["']/g, ""));
+    }
   }
   
   if (criteria.location && criteria.location.toLowerCase() !== "remote") {
-    parts.push(`"${criteria.location}"`);
+    // Extract city name and place in quotes to ensure match without being over-constrained by state syntax
+    const city = criteria.location.split(",")[0].trim().replace(/["']/g, "");
+    parts.push(`"${city}"`);
   }
-  
+
+  // Include Seniority / Academic terms directly into query parts to target the right profile level
+  if (criteria.seniority_level) {
+    const level = criteria.seniority_level.toLowerCase();
+    if (level.includes("phd") || level.includes("researcher") || level.includes("postdoc") || level.includes("doctor")) {
+      parts.push(`(PhD OR "Ph.D." OR doctoral OR postdoc OR researcher)`);
+    } else if (level.includes("staff") || level.includes("principal")) {
+      parts.push(`(Staff OR Principal)`);
+    } else if (level.includes("senior")) {
+      parts.push(`Senior`);
+    }
+  }
+
+  // Include required skills
   if (criteria.required_skills && criteria.required_skills.length > 0) {
     criteria.required_skills.slice(0, 2).forEach((skill: string) => {
       if (skill.length > 1) {
@@ -466,8 +678,27 @@ function buildTavilyQuery(criteria: any): string {
       }
     });
   }
+
+  // Include Education signals (e.g., target university)
+  if (criteria.education_signals && criteria.education_signals.length > 0) {
+    criteria.education_signals.slice(0, 2).forEach((edu: string) => {
+      if (edu.toLowerCase().includes("waterloo")) {
+        parts.push(`Waterloo`);
+      } else if (edu.toLowerCase().includes("toronto") || edu.toLowerCase().includes("uoft")) {
+        parts.push(`Toronto`);
+      } else if (edu.toLowerCase().includes("stanford")) {
+        parts.push(`Stanford`);
+      } else if (edu.toLowerCase().includes("mit")) {
+        parts.push(`MIT`);
+      } else if (edu.toLowerCase().includes("berkeley")) {
+        parts.push(`Berkeley`);
+      } else if (edu.length < 25 && !edu.toLowerCase().includes("bsc") && !edu.toLowerCase().includes("msc") && !edu.toLowerCase().includes("phd")) {
+        parts.push(`"${edu}"`);
+      }
+    });
+  }
   
-  return `${parts.join(" ")} profile portfolio cv`;
+  return `${parts.join(" ")} (profile OR portfolio OR cv OR resume)`;
 }
 
 async function searchTavily(query: string, apiKey: string): Promise<any[]> {
@@ -482,8 +713,7 @@ async function searchTavily(query: string, apiKey: string): Promise<any[]> {
         query: query,
         search_depth: "advanced",
         include_answer: false,
-        max_results: 15,
-        include_domains: ["linkedin.com", "github.com", "scholar.google.com", "orcid.org", "twitter.com", "x.com", "github.io"]
+        max_results: 20
       })
     });
     
