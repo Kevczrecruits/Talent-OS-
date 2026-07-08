@@ -630,75 +630,64 @@ function parseTavilyResultsLocally(results: any[], criteria: any): any[] {
   return candidates;
 }
 
-function buildTavilyQuery(criteria: any): string {
-  const parts: string[] = [];
-  
-  if (criteria.role) {
-    const roleLower = criteria.role.toLowerCase();
-    // Do not wrap multi-word generated roles in full quotes, as it restricts results excessively.
-    // Instead, wrap known tech phrases in quotes, and leave general role keywords unquoted.
-    if (roleLower.includes("distributed systems")) {
-      parts.push(`"distributed systems"`);
-    } else if (roleLower.includes("machine learning")) {
-      parts.push(`"machine learning"`);
-    } else if (roleLower.includes("deep learning")) {
-      parts.push(`"deep learning"`);
-    } else if (roleLower.includes("computer vision")) {
-      parts.push(`"computer vision"`);
-    } else if (roleLower.includes("natural language")) {
-      parts.push(`"natural language processing"`);
-    } else {
-      parts.push(criteria.role.replace(/["']/g, ""));
-    }
-  }
-  
-  if (criteria.location && criteria.location.toLowerCase() !== "remote") {
-    // Extract city name and place in quotes to ensure match without being over-constrained by state syntax
-    const city = criteria.location.split(",")[0].trim().replace(/["']/g, "");
-    parts.push(`"${city}"`);
-  }
+function buildTavilyQueries(criteria: any): string[] {
+  const roleLower = (criteria.role || "").toLowerCase();
+  let roleTerm = criteria.role ? criteria.role.replace(/["']/g, "") : "";
+  if (roleLower.includes("distributed systems")) roleTerm = `"distributed systems"`;
+  else if (roleLower.includes("machine learning")) roleTerm = `"machine learning"`;
+  else if (roleLower.includes("deep learning")) roleTerm = `"deep learning"`;
+  else if (roleLower.includes("computer vision")) roleTerm = `"computer vision"`;
+  else if (roleLower.includes("natural language")) roleTerm = `"natural language processing"`;
+  else if (roleLower.includes("reinforcement learning")) roleTerm = `"reinforcement learning"`;
 
-  // Include Seniority / Academic terms directly into query parts to target the right profile level
-  if (criteria.seniority_level) {
-    const level = criteria.seniority_level.toLowerCase();
-    if (level.includes("phd") || level.includes("researcher") || level.includes("postdoc") || level.includes("doctor")) {
-      parts.push(`(PhD OR "Ph.D." OR doctoral OR postdoc OR researcher)`);
-    } else if (level.includes("staff") || level.includes("principal")) {
-      parts.push(`(Staff OR Principal)`);
-    } else if (level.includes("senior")) {
-      parts.push(`Senior`);
-    }
-  }
+  const city = criteria.location && criteria.location.toLowerCase() !== "remote"
+    ? criteria.location.split(",")[0].trim().replace(/["']/g, "")
+    : "";
 
-  // Include required skills
-  if (criteria.required_skills && criteria.required_skills.length > 0) {
-    criteria.required_skills.slice(0, 2).forEach((skill: string) => {
-      if (skill.length > 1) {
-        parts.push(`"${skill}"`);
-      }
-    });
-  }
+  const seniorityLower = (criteria.seniority_level || "").toLowerCase();
+  const isAcademic = seniorityLower.includes("phd") || seniorityLower.includes("researcher") ||
+    seniorityLower.includes("postdoc") || seniorityLower.includes("doctor");
+  const seniorityTerm = isAcademic ? `(PhD OR "Ph.D." OR doctoral OR postdoc)` : "";
 
-  // Include Education signals (e.g., target university)
-  if (criteria.education_signals && criteria.education_signals.length > 0) {
-    criteria.education_signals.slice(0, 2).forEach((edu: string) => {
-      if (edu.toLowerCase().includes("waterloo")) {
-        parts.push(`Waterloo`);
-      } else if (edu.toLowerCase().includes("toronto") || edu.toLowerCase().includes("uoft")) {
-        parts.push(`Toronto`);
-      } else if (edu.toLowerCase().includes("stanford")) {
-        parts.push(`Stanford`);
-      } else if (edu.toLowerCase().includes("mit")) {
-        parts.push(`MIT`);
-      } else if (edu.toLowerCase().includes("berkeley")) {
-        parts.push(`Berkeley`);
-      } else if (edu.length < 25 && !edu.toLowerCase().includes("bsc") && !edu.toLowerCase().includes("msc") && !edu.toLowerCase().includes("phd")) {
-        parts.push(`"${edu}"`);
-      }
-    });
-  }
-  
-  return `${parts.join(" ")} (profile OR portfolio OR cv OR resume)`;
+  // Combine ALL skills (required + preferred), not just the first two, joined with OR
+  // so a page matching ANY one of them is a candidate hit, not requiring every term at once.
+  const allSkills: string[] = [
+    ...(criteria.required_skills || []),
+    ...(criteria.preferred_skills || []),
+  ].filter((s: string) => s && s.length > 1);
+  const skillsOrGroup = allSkills.length > 0
+    ? `(${allSkills.map((s: string) => `"${s}"`).join(" OR ")})`
+    : "";
+
+  const queries: string[] = [];
+
+  // Query 1: broad web search — role + soft location + skills OR-group
+  queries.push(
+    [roleTerm, city ? `"${city}"` : "", seniorityTerm, skillsOrGroup, "(profile OR portfolio OR cv OR resume)"]
+      .filter(Boolean).join(" ")
+  );
+
+  // Query 2: LinkedIn-focused X-ray style query — widest net for working professionals
+  queries.push(
+    [`site:linkedin.com/in`, roleTerm, skillsOrGroup, city ? `"${city}"` : ""]
+      .filter(Boolean).join(" ")
+  );
+
+  // Query 3: Academic/publication-focused — catches PhDs, researchers, and paper authors
+  // that a LinkedIn-only search misses entirely.
+  queries.push(
+    [`(site:scholar.google.com OR site:semanticscholar.org OR site:arxiv.org OR "google scholar")`,
+      roleTerm, skillsOrGroup, seniorityTerm]
+      .filter(Boolean).join(" ")
+  );
+
+  // Query 4: GitHub-focused — catches practitioners/engineers who publish code
+  // rather than papers or a polished LinkedIn.
+  queries.push(
+    [`site:github.com`, skillsOrGroup, roleTerm].filter(Boolean).join(" ")
+  );
+
+  return queries.filter(q => q.trim().length > 0);
 }
 
 async function searchTavily(query: string, apiKey: string): Promise<any[]> {
@@ -843,14 +832,34 @@ Parse this query into structured recruiting filters. Ensure all arrays are popul
       // Try Tavily search first if API key is provided
       if (tavilyApiKey) {
         try {
-          console.log("[Tavily] Sourcing live profiles using Tavily API");
-          const query = buildTavilyQuery(criteria);
-          console.log("[Tavily] Formulated search query:", query);
-          
-          const rawSearchResults = await searchTavily(query, tavilyApiKey);
-          
-          // Filter to only include real, verified individual profile/portfolio URLs
-          const searchResults = rawSearchResults.filter((r: any) => isValidProfileUrl(r.url));
+          console.log("[Tavily] Sourcing live profiles using Tavily API (multi-query fan-out)");
+          const queries = buildTavilyQueries(criteria);
+          console.log("[Tavily] Formulated search queries:", queries);
+
+          // Run all queries in parallel. If one fails (e.g. hits a Tavily rate
+          // limit), the others can still succeed — don't let one bad query
+          // sink the whole search.
+          const settledResults = await Promise.allSettled(
+            queries.map((q) => searchTavily(q, tavilyApiKey))
+          );
+          const rawSearchResults: any[] = settledResults
+            .filter((r): r is PromiseFulfilledResult<any[]> => r.status === "fulfilled")
+            .flatMap((r) => r.value);
+          const failedQueries = settledResults.filter((r) => r.status === "rejected").length;
+          if (failedQueries > 0) {
+            console.warn(`[Tavily] ${failedQueries} of ${queries.length} fan-out queries failed (likely rate limit) — continuing with the rest.`);
+          }
+
+          // Filter to only include real, verified individual profile/portfolio URLs,
+          // then dedupe by URL since multiple queries can surface the same page.
+          const seenUrls = new Set<string>();
+          const searchResults = rawSearchResults
+            .filter((r: any) => isValidProfileUrl(r.url))
+            .filter((r: any) => {
+              if (seenUrls.has(r.url)) return false;
+              seenUrls.add(r.url);
+              return true;
+            });
           
           if (searchResults && searchResults.length > 0) {
             usedTavily = true;
@@ -866,7 +875,8 @@ Snippet: ${r.content}
             const tavilyStructureSystemInstruction = `You are an elite talent acquisition AI. Your task is to analyze raw search engine results (titles, URLs, snippets) and extract real, verifiable professional profiles matching the search criteria.
 For each candidate you identify in the search results, extract their name, professional title, company/organization, geographical location, top skills, years of experience (estimate based on context if not explicit), a short summary of their profile/work, an explanation of why they match, and their profile URL.
 Set 'is_synthetic' to false, since these are real people found in search.
-Only return candidates who are actually mentioned or have their profiles represented in the search results. Do not invent anyone.
+Only return candidates who are actually mentioned or have their profiles represented in the search results. Do not invent anyone. Do not merge two different people into one entry, and do not list the same person twice even if they appear in multiple search results.
+Extract EVERY genuinely distinct, real candidate you can find in the results below — do not stop at some fixed count. If the results only support 3 real candidates, return 3. If they support 20, return 20.
 Do not output markdown formatting or code blocks — return strictly valid JSON matching the schema.`;
 
             const tavilyStructurePrompt = `Search Criteria:
@@ -874,12 +884,13 @@ Role: ${criteria.role}
 Location: ${criteria.location}
 Seniority: ${criteria.seniority_level}
 Required Skills: ${criteria.required_skills?.join(", ")}
+Preferred Skills: ${criteria.preferred_skills?.join(", ")}
 Education: ${criteria.education_signals?.join(", ")}
 
-Here are the raw search engine results retrieved live from Tavily Search:
+Here are ${searchResults.length} raw search engine results retrieved live from Tavily Search (merged across multiple targeted queries — general web, LinkedIn, academic/Scholar, and GitHub):
 ${searchResultsText}
 
-Please extract and structure up to 6-8 matching candidates from these live search results into the required JSON format. If a candidate's profile is found, use their exact LinkedIn, GitHub, or other profile URL as the 'web_link' and the 'search_query_url'.`;
+Extract and structure every genuinely distinct, real candidate you can verify from these live search results into the required JSON format — do not artificially limit the count. If a candidate's profile is found, use their exact LinkedIn, GitHub, Scholar, or other profile URL as the 'web_link' and the 'search_query_url'.`;
 
             try {
               const response = await client.models.generateContent({
