@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Sparkles, RefreshCw, AlertCircle, HelpCircle, ArrowRight, UserPlus, FileSearch, ExternalLink } from "lucide-react";
+import { Sparkles, RefreshCw, AlertCircle, ArrowRight, UserPlus, FileSearch, ExternalLink } from "lucide-react";
 import SourcingInput from "./components/SourcingInput";
 import FilterChips from "./components/FilterChips";
 import ResultCard from "./components/ResultCard";
@@ -13,12 +13,12 @@ export default function App() {
   const [fallbackReason, setFallbackReason] = useState<string | null>(null);
   const [groundedSources, setGroundedSources] = useState<string[]>([]);
   const [searchEngine, setSearchEngine] = useState<"tavily" | "google" | "local">("local");
-  
+
   // Sourcing loading indicators
   const [loading, setLoading] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [generating, setGenerating] = useState(false);
-  
+
   // Track if criteria has been modified by the recruiter manually removing chips
   const [criteriaDirty, setCriteriaDirty] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
@@ -144,283 +144,304 @@ export default function App() {
   };
 
   return (
-    <div id="app-root-container" className="min-h-screen bg-[#07090e] text-gray-200 selection:bg-[#00F0FF]/30 selection:text-[#00F0FF] relative overflow-hidden font-sans pb-24">
-      {/* Decorative ambient visual effects (Soft-club neon vibes) */}
-      <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-[#00F0FF]/[0.02] rounded-full blur-[120px] pointer-events-none -z-10" />
-      <div className="absolute bottom-10 left-10 w-[400px] h-[400px] bg-[#0072FF]/[0.02] rounded-full blur-[100px] pointer-events-none -z-10" />
-      <div className="absolute top-[30%] left-[20%] w-[300px] h-[300px] bg-[#8A2387]/[0.01] rounded-full blur-[90px] pointer-events-none -z-10" />
+    <div id="app-root-container" className="min-h-screen text-ink selection:bg-[#00B4D8]/20 selection:text-ink relative font-sans pb-0">
+      <div className="relative z-10">
 
-      {/* Cyber Grid background element */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none -z-10 opacity-75" />
+        <main className="max-w-5xl mx-auto px-4 md:px-6 pt-4 pb-16 space-y-8">
 
-      <main className="max-w-5xl mx-auto px-4 py-12 md:py-16 space-y-8 relative">
-        
-        {/* Navigation / Header Brand Bar */}
-        <div className="flex items-center justify-between border-b border-white/5 pb-4">
-          <div className="flex items-center gap-2">
-            <span className="font-display font-bold text-sm tracking-wider text-white">
-              TALENT<span className="text-[#00F0FF]">OS</span>
-            </span>
-            <span className="text-[9px] font-mono border border-white/10 px-1.5 py-0.5 rounded-md text-gray-500 uppercase">Prototype v2</span>
-          </div>
-          <div className="flex items-center gap-4 text-xs font-mono text-gray-500">
-            <span>Server-side API Sourcing Enabled</span>
-          </div>
-        </div>
-
-        {/* Input Panel */}
-        <SourcingInput
-          onSearch={handleFullSearch}
-          loading={loading}
-          selectedModel={selectedModel}
-          setSelectedModel={setSelectedModel}
-        />
-
-        {/* Resilient Local Sourcing Fallback Status */}
-        {isFallback && (
-          <div id="fallback-notification" className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/15 flex gap-3 items-start animate-fadeIn">
-            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 flex-shrink-0">
-              <Sparkles className="w-4 h-4" />
+          {/* Floating pill nav (tool-library style) */}
+          <nav className="sticky top-3.5 z-50 glass rounded-full px-5 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <span className="font-display font-extrabold text-sm tracking-tight text-ink lowercase">
+                talent<span className="text-[#00B4D8]">os</span>
+              </span>
+              <span className="text-[9px] font-mono border border-ink/15 px-1.5 py-0.5 rounded-md text-muted uppercase">prototype v2</span>
             </div>
-            <div className="flex-1">
-              <h4 className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2 flex-wrap">
-                <span>Local Match Active — Not Real Results</span>
-                <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-semibold border border-amber-500/20">
-                  {fallbackReason === "rate_limit" ? "RATE LIMIT HIT" : "GEMINI API ERROR"}
-                </span>
-              </h4>
-              <p className="text-xs text-gray-300 mt-1 leading-relaxed">
-                {fallbackReason === "rate_limit"
-                  ? "Gemini's quota was exhausted for this request. These candidates are locally-generated placeholders, not real people or a real search."
-                  : "The Gemini API call failed (not a quota issue). These candidates are locally-generated placeholders, not real people or a real search."}
-              </p>
+            <div className="flex items-center gap-2 font-mono text-[11px] text-muted">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>server-side api sourcing enabled</span>
             </div>
-          </div>
-        )}
+          </nav>
 
-        {/* Grounded search succeeded — show real citation count */}
-        {!isFallback && groundedSources.length > 0 && (
-          <div id="grounded-sources-notification" className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15 flex flex-col gap-3 animate-fadeIn">
-            <div className="flex gap-3 items-start">
-              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 flex-shrink-0">
+          {/* Hero (tool-library style) */}
+          <header className="pt-6">
+            <div className="kicker">kevin's sourcing stack · live search</div>
+            <h1 className="font-extrabold tracking-tight lowercase leading-[0.98] text-[clamp(40px,6.5vw,72px)] mt-3">
+              talent<span className="text-[#00B4D8]">os</span> search
+            </h1>
+            <p className="font-mono text-[13px] text-muted mt-3 max-w-xl leading-[1.7]">
+              describe who you're looking for in plain language — every search runs real, live queries across linkedin, academic sources, and github.
+            </p>
+          </header>
+
+          {/* Input Panel */}
+          <SourcingInput
+            onSearch={handleFullSearch}
+            loading={loading}
+            selectedModel={selectedModel}
+            setSelectedModel={setSelectedModel}
+          />
+
+          {/* Resilient Local Sourcing Fallback Status */}
+          {isFallback && (
+            <div id="fallback-notification" className="p-5 rounded-3xl glass border-amber-500/30! flex gap-3 items-start">
+              <div className="p-1.5 rounded-xl bg-amber-500/15 text-amber-600 flex-shrink-0">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div className="flex-1">
-                <h4 className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider">
-                  {searchEngine === "tavily" 
-                    ? `Live Sourced via LinkedIn, Academic & GitHub Search — ${groundedSources.length} profile source${groundedSources.length === 1 ? "" : "s"} found`
-                    : `Live Search Verified via Google Grounding — ${groundedSources.length} source${groundedSources.length === 1 ? "" : "s"} found`}
+                <h4 className="text-xs font-mono font-bold text-amber-700 uppercase tracking-wider flex items-center gap-2 flex-wrap">
+                  <span>local match active — not real results</span>
+                  <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 font-semibold border border-amber-500/30">
+                    {fallbackReason === "rate_limit" ? "rate limit hit" : "gemini api error"}
+                  </span>
                 </h4>
-                <p className="text-xs text-gray-300 mt-1 leading-relaxed">
-                  {searchEngine === "tavily"
-                    ? "These candidates were located in real-time from parallel web searches across LinkedIn, academic sources (Scholar/arXiv), and GitHub, then structured using Gemini. Still confirm each profile manually before outreach."
-                    : "These candidates were reformatted from an actual Google Search grounding call. Still confirm each profile manually before outreach."}
+                <p className="text-xs text-ink/70 mt-1 leading-relaxed">
+                  {fallbackReason === "rate_limit"
+                    ? "Gemini's quota was exhausted for this request. These candidates are locally-generated placeholders, not real people or a real search."
+                    : "The Gemini API call failed (not a quota issue). These candidates are locally-generated placeholders, not real people or a real search."}
                 </p>
               </div>
             </div>
-            
-            {/* Citation List */}
-            <div className="mt-2 pt-3 border-t border-emerald-500/10 space-y-1.5">
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-500 block">Verified Web References & Citations:</span>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
-                {groundedSources.map((source, index) => {
-                  const colonIndex = source.indexOf(": http");
-                  let name = source;
-                  let url = "";
-                  if (colonIndex !== -1) {
-                    name = source.substring(0, colonIndex);
-                    url = source.substring(colonIndex + 2);
-                  } else if (source.startsWith("http")) {
-                    name = source;
-                    url = source;
-                  }
-                  
-                  // Clean up name a bit if it has trailing LinkedIn strings
-                  if (name.length > 65) {
-                    name = name.slice(0, 62) + "...";
-                  }
+          )}
 
-                  return (
-                    <div key={index} className="flex items-center gap-1.5 text-xs bg-emerald-950/10 border border-emerald-500/5 hover:border-emerald-500/20 px-2.5 py-1.5 rounded-lg truncate">
-                      <span className="text-emerald-500 font-mono text-[10px] flex-shrink-0">[{index + 1}]</span>
-                      {url ? (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-gray-300 hover:text-[#00F0FF] transition-all flex items-center gap-1 truncate inline-flex w-full"
-                          title={source}
-                        >
-                          <span className="truncate flex-1">{name}</span>
-                          <ExternalLink className="w-2.5 h-2.5 flex-shrink-0 opacity-60 group-hover:opacity-100" />
-                        </a>
-                      ) : (
-                        <span className="text-gray-400 truncate flex-1" title={source}>{source}</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Error Handling State */}
-        {error && (
-          <div id="error-alert-box" className="p-4 rounded-xl bg-red-950/20 border border-red-500/30 flex gap-3 items-start animate-fadeIn">
-            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h4 className="text-xs font-mono font-bold text-red-300 uppercase tracking-wider">Search Pipeline Exception</h4>
-              <p className="text-xs text-red-200 mt-1">{error}</p>
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={criteriaDirty ? handleRegenerateProfiles : () => {}}
-                  className="px-3 py-1.5 rounded-lg bg-red-500/15 border border-red-500/20 text-xs text-red-200 hover:bg-red-500/25 transition-all cursor-pointer"
-                >
-                  Retry Sourcing Execution
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Dynamic Interactive Criteria Section */}
-        {criteria && (
-          <FilterChips
-            criteria={criteria}
-            onRemoveChip={handleRemoveChip}
-            onClearAll={handleClearAll}
-          />
-        )}
-
-        {/* Criteria Dirty Alert (If user deleted chips but hasn't updated profiles yet) */}
-        {criteriaDirty && !loading && (
-          <div id="criteria-dirty-banner" className="p-4 rounded-xl bg-[#00F0FF]/[0.02] border border-[#00F0FF]/20 flex flex-col sm:flex-row items-center justify-between gap-4 animate-pulse">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-[#00F0FF]" />
-              <p className="text-xs text-gray-300">
-                You modified the sourcing filters. Update the matching profiles to sync results with current chips.
-              </p>
-            </div>
-            <button
-              onClick={handleRegenerateProfiles}
-              className="flex items-center gap-1.5 text-xs text-black bg-[#00F0FF] hover:bg-[#00F0FF]/80 px-4 py-2 rounded-lg font-medium transition-all cursor-pointer shadow-[0_0_15px_rgba(0,240,255,0.2)] active:scale-95"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Regenerate Matches</span>
-            </button>
-          </div>
-        )}
-
-        {/* Sourcing Progress States */}
-        {loading && (
-          <div id="sourcing-progress-indicator" className="space-y-6">
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full border-2 border-[#00F0FF]/10 border-t-[#00F0FF] animate-spin" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-[#00F0FF] animate-pulse" />
+          {/* Grounded search succeeded — show real citation count */}
+          {!isFallback && groundedSources.length > 0 && (
+            <div id="grounded-sources-notification" className="p-5 rounded-3xl glass border-emerald-500/30! flex flex-col gap-3">
+              <div className="flex gap-3 items-start">
+                <div className="p-1.5 rounded-xl bg-emerald-500/15 text-emerald-600 flex-shrink-0">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-xs font-mono font-bold text-emerald-700 uppercase tracking-wider">
+                    {searchEngine === "tavily"
+                      ? `live sourced via linkedin, academic & github search — ${groundedSources.length} profile source${groundedSources.length === 1 ? "" : "s"} found`
+                      : `live search verified via google grounding — ${groundedSources.length} source${groundedSources.length === 1 ? "" : "s"} found`}
+                  </h4>
+                  <p className="text-xs text-ink/70 mt-1 leading-relaxed">
+                    {searchEngine === "tavily"
+                      ? "These candidates were located in real-time from parallel web searches across LinkedIn, academic sources (Scholar/arXiv), and GitHub, then structured using Gemini. Still confirm each profile manually before outreach."
+                      : "These candidates were reformatted from an actual Google Search grounding call. Still confirm each profile manually before outreach."}
+                  </p>
                 </div>
               </div>
-              <h3 className="text-sm font-mono uppercase tracking-widest text-white mt-6">
-                {parsing ? "Parsing Recruiter Intention..." : "Searching Live Web Directories..."}
-              </h3>
-              <p className="text-xs text-gray-500 mt-2 max-w-sm">
-                {parsing
-                  ? `Analyzing the query using ${selectedModel} to generate structured constraints and technological filters.`
-                  : "Sourcing, validating, and extracting real public profiles and academic/professional links matching your parameters."}
-              </p>
-            </div>
 
-            {/* Skeleton Loading Grids */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-40">
-              {[1, 2, 3, 4].map((skeletonId) => (
-                <div key={skeletonId} className="border border-white/5 bg-[#11141b]/30 rounded-2xl p-6 space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-white/5 animate-pulse" />
-                    <div className="space-y-2 flex-1">
-                      <div className="h-4 w-1/3 bg-white/10 rounded animate-pulse" />
-                      <div className="h-3 w-1/2 bg-white/5 rounded animate-pulse" />
-                    </div>
-                  </div>
-                  <div className="space-y-2 pt-4 border-t border-white/5">
-                    <div className="h-3 w-full bg-white/5 rounded animate-pulse" />
-                    <div className="h-3 w-5/6 bg-white/5 rounded animate-pulse" />
-                  </div>
+              {/* Citation List */}
+              <div className="mt-2 pt-3 border-t border-emerald-500/15 space-y-1.5">
+                <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-600 block">verified web references & citations:</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
+                  {groundedSources.map((source, index) => {
+                    const colonIndex = source.indexOf(": http");
+                    let name = source;
+                    let url = "";
+                    if (colonIndex !== -1) {
+                      name = source.substring(0, colonIndex);
+                      url = source.substring(colonIndex + 2);
+                    } else if (source.startsWith("http")) {
+                      name = source;
+                      url = source;
+                    }
+
+                    // Clean up name a bit if it has trailing LinkedIn strings
+                    if (name.length > 65) {
+                      name = name.slice(0, 62) + "...";
+                    }
+
+                    return (
+                      <div key={index} className="flex items-center gap-1.5 text-xs bg-white/70 border border-emerald-500/15 hover:border-emerald-500/40 px-2.5 py-1.5 rounded-xl truncate">
+                        <span className="text-emerald-600 font-mono text-[10px] flex-shrink-0">[{index + 1}]</span>
+                        {url ? (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-ink/80 hover:text-[#04748c] transition-all flex items-center gap-1 truncate inline-flex w-full"
+                            title={source}
+                          >
+                            <span className="truncate flex-1">{name}</span>
+                            <ExternalLink className="w-2.5 h-2.5 flex-shrink-0 opacity-60" />
+                          </a>
+                        ) : (
+                          <span className="text-muted truncate flex-1" title={source}>{source}</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Profiles Results Section */}
-        {!loading && searchPerformed && (
-          <div id="results-profiles-grid" className="space-y-6">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
-              <div className="flex items-center gap-2">
-                <h2 className="font-display font-bold text-lg text-white">
-                  {isFallback ? "Local Placeholder Results" : searchEngine === "tavily" ? "Live Multi-Source Search Results" : "Live Grounded Search Results"}
-                </h2>
-                <span className={`text-xs font-mono px-2 py-0.5 rounded-full bg-white/5 border ${isFallback ? "border-amber-500/20 text-amber-400" : "border-emerald-500/20 text-emerald-400"}`}>
-                  {candidates.length} Profiles
-                </span>
               </div>
-              <p className="text-[10px] text-gray-500 font-mono">
-                {isFallback ? "Not Verified — Fabricated Locally" : "Verified Public Web Profiles"}
-              </p>
             </div>
+          )}
 
-            {candidates.length === 0 ? (
-              <div className="text-center py-16 border border-white/5 rounded-2xl bg-[#11141b]/20">
-                <FileSearch className="w-8 h-8 text-gray-600 mx-auto" />
-                <h4 className="text-sm font-display font-medium text-gray-400 mt-4">No Matching Talent Synthesized</h4>
-                <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-                  No real, verifiable candidates were found for this query. Try broadening your criteria, or selecting a different reasoning engine.
+          {/* Error Handling State */}
+          {error && (
+            <div id="error-alert-box" className="p-5 rounded-3xl glass border-red-500/30! flex gap-3 items-start">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-xs font-mono font-bold text-red-600 uppercase tracking-wider">search pipeline exception</h4>
+                <p className="text-xs text-red-700/80 mt-1">{error}</p>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={criteriaDirty ? handleRegenerateProfiles : () => {}}
+                    className="px-4 py-2 rounded-full bg-red-500/10 border border-red-500/25 text-xs font-mono font-bold text-red-600 hover:bg-red-500/20 transition-all cursor-pointer"
+                  >
+                    retry sourcing execution
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Dynamic Interactive Criteria Section */}
+          {criteria && (
+            <FilterChips
+              criteria={criteria}
+              onRemoveChip={handleRemoveChip}
+              onClearAll={handleClearAll}
+            />
+          )}
+
+          {/* Criteria Dirty Alert (If user deleted chips but hasn't updated profiles yet) */}
+          {criteriaDirty && !loading && (
+            <div id="criteria-dirty-banner" className="p-4 rounded-full glass border-[#00B4D8]/40! flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 pl-2">
+                <div className="w-2 h-2 rounded-full bg-[#00B4D8]" />
+                <p className="text-xs text-ink/70 font-mono">
+                  you modified the sourcing filters — update the matching profiles to sync results with current chips.
                 </p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {candidates.map((candidate, idx) => (
-                  <ResultCard key={`${candidate.name}-${idx}`} candidate={candidate} />
+              <button
+                onClick={handleRegenerateProfiles}
+                className="flex items-center gap-1.5 text-xs font-mono font-bold text-white bg-ink hover:bg-[#1a2233] px-5 py-2.5 rounded-full transition-all cursor-pointer active:scale-95 flex-shrink-0"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>regenerate matches</span>
+              </button>
+            </div>
+          )}
+
+          {/* Sourcing Progress States */}
+          {loading && (
+            <div id="sourcing-progress-indicator" className="space-y-6">
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full border-2 border-[#00B4D8]/15 border-t-[#00B4D8] animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-[#00B4D8] animate-pulse" />
+                  </div>
+                </div>
+                <h3 className="text-sm font-mono uppercase tracking-widest text-ink mt-6 font-bold">
+                  {parsing ? "parsing recruiter intention..." : "searching live web directories..."}
+                </h3>
+                <p className="text-xs text-muted mt-2 max-w-sm">
+                  {parsing
+                    ? `Analyzing the query using ${selectedModel} to generate structured constraints and technological filters.`
+                    : "Sourcing, validating, and extracting real public profiles and academic/professional links matching your parameters."}
+                </p>
+              </div>
+
+              {/* Skeleton Loading Grids */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-[18px] opacity-60">
+                {[1, 2, 3, 4].map((skeletonId) => (
+                  <div key={skeletonId} className="glass rounded-3xl p-6 space-y-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-ink/5 animate-pulse" />
+                      <div className="space-y-2 flex-1">
+                        <div className="h-4 w-1/3 bg-ink/10 rounded animate-pulse" />
+                        <div className="h-3 w-1/2 bg-ink/5 rounded animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="space-y-2 pt-4 border-t border-ink/5">
+                      <div className="h-3 w-full bg-ink/5 rounded animate-pulse" />
+                      <div className="h-3 w-5/6 bg-ink/5 rounded animate-pulse" />
+                    </div>
+                  </div>
                 ))}
               </div>
-            )}
+            </div>
+          )}
+
+          {/* Profiles Results Section */}
+          {!loading && searchPerformed && (
+            <div id="results-profiles-grid" className="space-y-6">
+              <div className="flex items-center justify-between border-b border-ink/10 pb-3">
+                <div className="flex items-center gap-3">
+                  <h2 className="font-extrabold text-xl text-ink lowercase tracking-tight">
+                    {isFallback ? "local placeholder results" : searchEngine === "tavily" ? "live multi-source search results" : "live grounded search results"}
+                  </h2>
+                  <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full border ${isFallback ? "bg-amber-500/10 border-amber-500/30 text-amber-700" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"}`}>
+                    {candidates.length} profiles
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted font-mono hidden sm:block">
+                  {isFallback ? "not verified — fabricated locally" : "verified public web profiles"}
+                </p>
+              </div>
+
+              {candidates.length === 0 ? (
+                <div className="text-center py-16 glass rounded-3xl">
+                  <FileSearch className="w-8 h-8 text-muted mx-auto" />
+                  <h4 className="text-sm font-bold text-ink mt-4 lowercase">no matching talent synthesized</h4>
+                  <p className="text-xs text-muted mt-1 max-w-xs mx-auto">
+                    No real, verifiable candidates were found for this query. Try broadening your criteria, or selecting a different reasoning engine.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-[18px]">
+                  {candidates.map((candidate, idx) => (
+                    <ResultCard key={`${candidate.name}-${idx}`} candidate={candidate} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Empty State / Welcome Splash when search has not run yet */}
+          {!searchPerformed && !loading && (
+            <div id="welcome-sourcing-splash" className="rounded-3xl glass p-8 text-center space-y-6">
+              <div className="w-12 h-12 rounded-full bg-[#00B4D8]/10 border border-[#00B4D8]/25 flex items-center justify-center mx-auto text-[#00B4D8]">
+                <Sparkles className="w-5 h-5" />
+              </div>
+
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="font-extrabold text-lg text-ink lowercase tracking-tight">intelligent recruiter workspace</h3>
+                <p className="text-xs text-muted leading-relaxed">
+                  Provide natural language queries describing target PhD/scarcity profiles or system infrastructure hires. The system parses them into precise recruitment filters and populates interactive matching candidates.
+                </p>
+              </div>
+
+              {/* Quick Sourcing Instructions / Value-prop block */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 max-w-3xl mx-auto border-t border-ink/10 text-left text-xs">
+                <div className="p-4 rounded-2xl bg-white/60 border border-white/90 space-y-1">
+                  <div className="text-[#04748c] font-mono font-bold text-[10px] uppercase tracking-wider">1 · intent parse</div>
+                  <p className="text-muted text-[11px] leading-relaxed">Gemini identifies role title, seniority, locations, must-have skills, and academic pipelines.</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/60 border border-white/90 space-y-1">
+                  <div className="text-[#04748c] font-mono font-bold text-[10px] uppercase tracking-wider">2 · tuning & filters</div>
+                  <p className="text-muted text-[11px] leading-relaxed">Remove specific chips or edit constraints manually. Results and criteria sync seamlessly.</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/60 border border-white/90 space-y-1">
+                  <div className="text-[#04748c] font-mono font-bold text-[10px] uppercase tracking-wider">3 · live multi-source search</div>
+                  <p className="text-muted text-[11px] leading-relaxed">Searches LinkedIn, academic sources, and GitHub in parallel and returns only verifiable, real candidates with source links.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </main>
+
+        {/* Dark footer strip (tool-library style) */}
+        <footer className="bg-ink text-white rounded-[36px_36px_0_0] px-6 py-14 text-center mt-8">
+          <h3 className="m-0 mb-2.5 font-extrabold lowercase tracking-tight text-[clamp(26px,4vw,40px)]">keep sourcing</h3>
+          <p className="font-mono text-[12px] text-white/65 leading-[1.8] max-w-[520px] mx-auto">
+            natural language in, verified profiles out.<br />
+            built on the gemini api + tavily live search.
+          </p>
+          <div className="flex gap-2.5 justify-center flex-wrap mt-6">
+            <span className="font-mono text-[12px] font-bold border border-white/25 text-white rounded-full px-[18px] py-2.5">talent<span className="text-[#00B4D8]">os</span></span>
+            <span className="font-mono text-[12px] font-bold bg-white text-ink border border-white rounded-full px-[18px] py-2.5">prototype v2</span>
           </div>
-        )}
+        </footer>
 
-        {/* Empty State / Welcome Splash when search has not run yet */}
-        {!searchPerformed && !loading && (
-          <div id="welcome-sourcing-splash" className="rounded-2xl bg-[#11141b]/20 border border-white/5 p-8 text-center space-y-6">
-            <div className="w-12 h-12 rounded-full bg-[#00F0FF]/5 border border-[#00F0FF]/15 flex items-center justify-center mx-auto text-[#00F0FF] shadow-[0_0_15px_rgba(0,240,255,0.08)]">
-              <Sparkles className="w-5 h-5 fill-[#00F0FF]/10" />
-            </div>
-            
-            <div className="max-w-md mx-auto space-y-2">
-              <h3 className="font-display font-semibold text-base text-gray-100">Intelligent Recruiter Workspace</h3>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Provide natural language queries describing target PhD/scarcity profiles or system infrastructure hires. The system parses them into precise recruitment filters and populates interactive matching candidates.
-              </p>
-            </div>
-
-            {/* Quick Sourcing Instructions / Value-prop block */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 max-w-3xl mx-auto border-t border-white/5 text-left text-xs">
-              <div className="p-4 rounded-xl bg-[#11141b]/40 border border-white/5 space-y-1">
-                <div className="text-[#00F0FF] font-mono font-bold text-[10px] uppercase">1. Intent Parse</div>
-                <p className="text-gray-400 text-[11px]">Gemini identifies role title, seniority, locations, must-have skills, and academic pipelines.</p>
-              </div>
-              <div className="p-4 rounded-xl bg-[#11141b]/40 border border-white/5 space-y-1">
-                <div className="text-[#00F0FF] font-mono font-bold text-[10px] uppercase">2. Tuning & Filters</div>
-                <p className="text-gray-400 text-[11px]">Remove specific chips or edit constraints manually. Results and criteria sync seamlessly.</p>
-              </div>
-              <div className="p-4 rounded-xl bg-[#11141b]/40 border border-white/5 space-y-1">
-                <div className="text-[#00F0FF] font-mono font-bold text-[10px] uppercase">3. Live Multi-Source Search</div>
-                <p className="text-gray-400 text-[11px]">Searches LinkedIn, academic sources, and GitHub in parallel and returns only verifiable, real candidates with source links.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-      </main>
+      </div>
     </div>
   );
 }

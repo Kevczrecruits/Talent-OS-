@@ -24,8 +24,8 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
 
   if (!hasActiveFilters) {
     return (
-      <div id="no-filters-container" className="flex items-center justify-between p-4 bg-[#11141b]/60 border border-white/5 rounded-xl">
-        <span className="text-xs text-gray-500 italic">No search criteria defined yet. Describe your candidate above to begin.</span>
+      <div id="no-filters-container" className="flex items-center justify-between p-4 glass rounded-2xl">
+        <span className="text-xs text-muted italic font-mono">no search criteria defined yet — describe your candidate above to begin.</span>
       </div>
     );
   }
@@ -35,18 +35,18 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
     category: keyof SourcingCriteria,
     valueToRemove?: string,
     icon?: React.ReactNode,
-    colorClass = "border-[#00F0FF]/30 text-[#00F0FF] bg-[#00F0FF]/5"
+    colorClass = "border-[#00B4D8]/40 text-[#04748c] bg-[#00B4D8]/10"
   ) => {
     return (
       <div
         key={`${category}-${valueToRemove || label}`}
-        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-sans border transition-all ${colorClass}`}
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border transition-all hover:-translate-y-px ${colorClass}`}
       >
         {icon && <span className="opacity-80">{icon}</span>}
         <span>{label}</span>
         <button
           onClick={() => onRemoveChip(category, valueToRemove)}
-          className="hover:bg-white/10 rounded-full p-0.5 transition-colors cursor-pointer"
+          className="hover:bg-ink/10 rounded-full p-0.5 transition-colors cursor-pointer"
           title="Remove criteria"
         >
           <X className="w-3 h-3" />
@@ -56,14 +56,14 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
   };
 
   return (
-    <div id="filter-chips-section" className="space-y-3 p-5 rounded-2xl bg-[#11141b]/40 border border-white/5 backdrop-blur-md">
-      <div className="flex items-center justify-between border-b border-white/5 pb-2">
-        <h4 className="text-xs font-mono uppercase tracking-widest text-gray-400">Parsed Sourcing Criteria</h4>
+    <div id="filter-chips-section" className="space-y-3 p-5 rounded-3xl glass">
+      <div className="flex items-center justify-between border-b border-ink/10 pb-2.5">
+        <h4 className="kicker">parsed sourcing criteria</h4>
         <button
           onClick={onClearAll}
-          className="text-xs text-[#00F0FF] hover:underline transition-all cursor-pointer font-sans"
+          className="text-xs font-mono font-bold text-[#04748c] hover:underline transition-all cursor-pointer"
         >
-          Reset All
+          reset all
         </button>
       </div>
 
@@ -71,41 +71,41 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
         {/* Role Chip */}
         {criteria.role &&
           renderChip(
-            `Role: ${criteria.role}`,
+            `role: ${criteria.role}`,
             "role",
             undefined,
             <Briefcase className="w-3.5 h-3.5" />,
-            "border-cyan-500/30 text-cyan-400 bg-cyan-950/20"
+            "border-[#00B4D8]/40 text-[#04748c] bg-[#00B4D8]/10"
           )}
 
         {/* Seniority Chip */}
         {criteria.seniority_level &&
           renderChip(
-            `Seniority: ${criteria.seniority_level}`,
+            `seniority: ${criteria.seniority_level}`,
             "seniority_level",
             undefined,
             <Award className="w-3.5 h-3.5" />,
-            "border-emerald-500/30 text-emerald-400 bg-emerald-950/20"
+            "border-emerald-500/40 text-emerald-700 bg-emerald-500/10"
           )}
 
         {/* Location Chip */}
         {criteria.location &&
           renderChip(
-            `Location: ${criteria.location}`,
+            `location: ${criteria.location}`,
             "location",
             undefined,
             <MapPin className="w-3.5 h-3.5" />,
-            "border-amber-500/30 text-amber-400 bg-amber-950/20"
+            "border-amber-500/40 text-amber-700 bg-amber-500/10"
           )}
 
         {/* Industry Chip */}
         {criteria.industry &&
           renderChip(
-            `Industry: ${criteria.industry}`,
+            `industry: ${criteria.industry}`,
             "industry",
             undefined,
             <Layers className="w-3.5 h-3.5" />,
-            "border-purple-500/30 text-purple-400 bg-purple-950/20"
+            "border-purple-500/40 text-purple-700 bg-purple-500/10"
           )}
 
         {/* Required Skills */}
@@ -114,8 +114,8 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
             skill,
             "required_skills",
             skill,
-            <Star className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400/20" />,
-            "border-[#00F0FF]/30 text-[#00F0FF] bg-[#00F0FF]/5"
+            <Star className="w-3.5 h-3.5 text-[#00B4D8] fill-[#00B4D8]/25" />,
+            "border-[#00B4D8]/40 text-[#04748c] bg-[#00B4D8]/10"
           )
         )}
 
@@ -125,8 +125,8 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
             skill,
             "preferred_skills",
             skill,
-            <Star className="w-3.5 h-3.5 text-indigo-400" />,
-            "border-indigo-500/30 text-indigo-400 bg-indigo-950/20"
+            <Star className="w-3.5 h-3.5 text-indigo-500" />,
+            "border-indigo-500/40 text-indigo-700 bg-indigo-500/10"
           )
         )}
 
@@ -137,25 +137,25 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
             "education_signals",
             edu,
             <BookOpen className="w-3.5 h-3.5" />,
-            "border-pink-500/30 text-pink-400 bg-pink-950/20"
+            "border-pink-500/40 text-pink-700 bg-pink-500/10"
           )
         )}
 
         {/* Diversity Filter */}
         {criteria.diversity_or_demographic_filters &&
           renderChip(
-            `Demographics: ${criteria.diversity_or_demographic_filters}`,
+            `demographics: ${criteria.diversity_or_demographic_filters}`,
             "diversity_or_demographic_filters",
             undefined,
             <Users className="w-3.5 h-3.5" />,
-            "border-orange-500/30 text-orange-400 bg-orange-950/20"
+            "border-orange-500/40 text-orange-700 bg-orange-500/10"
           )}
       </div>
 
       {criteria.other_notes && (
-        <div className="text-[11px] text-gray-500 mt-2 border-t border-white/5 pt-2 flex flex-col gap-0.5">
-          <span className="font-mono text-[9px] uppercase tracking-wider text-gray-400">Assistant Sourcing Notes:</span>
-          <p className="italic font-sans">{criteria.other_notes}</p>
+        <div className="text-[11px] text-muted mt-2 border-t border-ink/10 pt-2.5 flex flex-col gap-0.5">
+          <span className="font-mono text-[9px] uppercase tracking-wider text-muted">assistant sourcing notes:</span>
+          <p className="italic">{criteria.other_notes}</p>
         </div>
       )}
     </div>

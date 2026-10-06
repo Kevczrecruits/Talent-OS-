@@ -1,36 +1,95 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------
+   talentos design system — mirrors the recruiting tool library:
+   Space Grotesk + Space Mono, light glassmorphism, ink #0B0F19,
+   cyan #00B4D8, faint grid mesh, pill buttons, lowercase headings.
+------------------------------------------------------------------ */
+
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0b0f19;
+  --color-brand: #00b4d8;
+  --color-brand-deep: #04748c;
+  --color-muted: #5b6577;
 }
 
-/* Custom scrollbar to match the soft-club minimalist theme */
+html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
+  color: #0b0f19;
+  background: linear-gradient(180deg, #f4f8fa 0%, #eaf3f5 100%);
+  min-height: 100vh;
+}
+
+/* faint grid mesh (same as the tool library) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(11, 15, 25, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 15, 25, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 100% 62% at 50% 0%, #000 25%, transparent 100%);
+  mask-image: radial-gradient(ellipse 100% 62% at 50% 0%, #000 25%, transparent 100%);
+}
+
+/* custom scrollbar to match the light glass theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(10, 12, 16, 0.4);
+  background: rgba(11, 15, 25, 0.04);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 240, 255, 0.2);
+  background: rgba(0, 180, 216, 0.35);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 240, 255, 0.4);
+  background: rgba(0, 180, 216, 0.55);
 }
 
+/* kicker line with cyan dot (tool-library style) */
 @layer utilities {
-  .neon-glow {
-    text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+  .kicker {
+    font-family: "Space Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #5b6577;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
-  .neon-border {
-    box-shadow: 0 0 15px rgba(0, 240, 255, 0.1);
+  .kicker::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #00b4d8;
+    box-shadow: 0 0 10px #00b4d8;
+    flex: none;
+  }
+  .glass {
+    background: rgba(255, 255, 255, 0.75);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
   }
 }

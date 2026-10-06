@@ -6,13 +6,13 @@ interface ResultCardProps {
   candidate: Candidate;
 }
 
-// Generate random aesthetic gradient backgrounds for avatars
+// Light-friendly aesthetic gradient backgrounds for avatars (tool-library palette)
 const AVATAR_GRADIENTS = [
-  "from-[#00F0FF]/30 to-[#0072FF]/30",
-  "from-[#00F0FF]/30 to-[#8A2387]/30",
-  "from-[#FF007F]/30 to-[#7F00FF]/30",
-  "from-[#00FF87]/30 to-[#60EFFF]/30",
-  "from-[#F12711]/30 to-[#F5AF19]/30",
+  "from-[#00B4D8]/30 to-[#0072FF]/30",
+  "from-[#00B4D8]/30 to-[#8A2387]/30",
+  "from-[#FF007F]/25 to-[#7F00FF]/25",
+  "from-[#00FF87]/40 to-[#60EFFF]/40",
+  "from-[#F12711]/25 to-[#F5AF19]/25",
 ];
 
 const getInitials = (name: string) => {
@@ -78,91 +78,88 @@ export default function ResultCard({ candidate }: ResultCardProps) {
   const gradientIndex = Math.abs(
     candidate.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
   ) % AVATAR_GRADIENTS.length;
-  
+
   const gradient = AVATAR_GRADIENTS[gradientIndex];
 
   return (
     <div
       id={`candidate-card-${candidate.name.replace(/\s+/g, "-").toLowerCase()}`}
-      className="group relative rounded-2xl bg-[#11141b]/50 border border-white/5 p-6 backdrop-blur-md hover:border-[#00F0FF]/30 hover:shadow-[0_0_20px_rgba(0,240,255,0.06)] transition-all duration-300 flex flex-col justify-between"
+      className="group relative rounded-3xl glass p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(0,0,0,0.07)] flex flex-col justify-between"
     >
-      {/* Glow effect on hover */}
-      <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-[#00F0FF]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 pointer-events-none" />
-
       <div>
         {/* Top Header Row with Avatar and Core details */}
         <div className="flex items-start gap-4">
-          <div className={`w-12 h-12 rounded-full bg-gradient-to-tr ${gradient} border border-white/10 flex items-center justify-center text-xs font-mono font-bold text-white tracking-wider shadow-[0_0_10px_rgba(0,240,255,0.1)] group-hover:shadow-[0_0_15px_rgba(0,240,255,0.2)] transition-all duration-300 flex-shrink-0`}>
+          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${gradient} border border-white/90 flex items-center justify-center text-xs font-mono font-bold text-ink tracking-wider shadow-[0_6px_18px_rgba(0,0,0,0.06)] flex-shrink-0`}>
             {getInitials(candidate.name)}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-display font-semibold text-base text-gray-100 group-hover:text-[#00F0FF] transition-colors duration-200 truncate">
+              <h3 className="font-extrabold text-[17px] text-ink tracking-tight lowercase group-hover:text-[#04748c] transition-colors duration-200 truncate">
                 {candidate.name}
               </h3>
               {candidate.is_synthetic === false ? (
                 <>
-                  <span className="text-[8px] font-mono tracking-wider uppercase font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-0.5">
-                    <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
-                    Live Match
+                  <span className="text-[8px] font-mono tracking-wider uppercase font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                    live match
                   </span>
-                  
+
                   {/* Verification Status Badge */}
                   {verifyStatus === "checking" && (
-                    <span className="text-[8px] font-mono tracking-wider uppercase font-semibold px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center gap-1 animate-pulse">
+                    <span className="text-[8px] font-mono tracking-wider uppercase font-bold px-1.5 py-0.5 rounded-full bg-[#00B4D8]/10 border border-[#00B4D8]/30 text-[#04748c] flex items-center gap-1 animate-pulse">
                       <RefreshCw className="w-2 h-2 animate-spin" />
-                      Validating Link...
+                      validating link…
                     </span>
                   )}
                   {verifyStatus === "reachable" && (
-                    <span className="text-[8px] font-mono tracking-wider uppercase font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 flex items-center gap-0.5" title="Connection verified.">
-                      ● Active Link
+                    <span className="text-[8px] font-mono tracking-wider uppercase font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-700 flex items-center gap-1" title="Connection verified.">
+                      ● active link
                     </span>
                   )}
                   {verifyStatus === "rate_limited" && (
-                    <span className="text-[8px] font-mono tracking-wider uppercase font-semibold px-1.5 py-0.5 rounded bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 flex items-center gap-0.5" title="Domain protects against automated checks, but is verified active.">
-                      ● Domain Secured
+                    <span className="text-[8px] font-mono tracking-wider uppercase font-bold px-1.5 py-0.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-700 flex items-center gap-1" title="Domain protects against automated checks, but is verified active.">
+                      ● domain secured
                     </span>
                   )}
                   {verifyStatus === "not_found" && (
-                    <span className="text-[8px] font-mono tracking-wider uppercase font-semibold px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 flex items-center gap-0.5">
-                      ● Broken Link (404)
+                    <span className="text-[8px] font-mono tracking-wider uppercase font-bold px-1.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-600 flex items-center gap-1">
+                      ● broken link (404)
                     </span>
                   )}
                   {verifyStatus === "error" && (
-                    <span className="text-[8px] font-mono tracking-wider uppercase font-semibold px-1.5 py-0.5 rounded bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center gap-0.5" title="Network timeout or unreachable host.">
-                      ● Timeout / Offline
+                    <span className="text-[8px] font-mono tracking-wider uppercase font-bold px-1.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-700 flex items-center gap-1" title="Network timeout or unreachable host.">
+                      ● timeout / offline
                     </span>
                   )}
                 </>
               ) : (
-                <span className="text-[8px] font-mono tracking-wider uppercase font-semibold px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-gray-400">
-                  Demo Draft
+                <span className="text-[8px] font-mono tracking-wider uppercase font-bold px-1.5 py-0.5 rounded-full bg-ink/5 border border-ink/10 text-muted">
+                  demo draft
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-400 mt-0.5 truncate">
-              <span className="font-medium text-gray-300">{candidate.title}</span>
-              <span className="text-gray-500 mx-1.5">@</span>
-              <span className="text-[#00F0FF]/90 font-mono text-[11px]">{candidate.company}</span>
+            <p className="text-xs text-muted mt-0.5 truncate">
+              <span className="font-bold text-ink/80">{candidate.title}</span>
+              <span className="text-muted/60 mx-1.5">@</span>
+              <span className="text-[#04748c] font-mono text-[11px]">{candidate.company}</span>
             </p>
           </div>
         </div>
 
         {/* Location & Experience badging */}
-        <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4 text-[11px] text-gray-400 font-sans border-t border-white/5 pt-3">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4 text-[11px] text-muted border-t border-ink/10 pt-3">
           <div className="flex items-center gap-1">
-            <MapPin className="w-3.5 h-3.5 text-[#00F0FF]/60" />
+            <MapPin className="w-3.5 h-3.5 text-[#00B4D8]" />
             <span>{candidate.location}</span>
           </div>
           <div className="flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5 text-[#00F0FF]/60" />
-            <span>{candidate.years_of_experience} Experience</span>
+            <Calendar className="w-3.5 h-3.5 text-[#00B4D8]" />
+            <span>{candidate.years_of_experience} experience</span>
           </div>
         </div>
 
         {/* 1-Line Professional Pitch */}
-        <p className="text-xs text-gray-300 italic mt-3 font-sans line-clamp-2">
+        <p className="text-xs text-ink/70 italic mt-3 line-clamp-2">
           "{candidate.summary}"
         </p>
 
@@ -171,7 +168,7 @@ export default function ResultCard({ candidate }: ResultCardProps) {
           {candidate.top_skills.map((skill, index) => (
             <span
               key={`${skill}-${index}`}
-              className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-gray-300"
+              className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-ink/[0.06] text-ink"
             >
               {skill}
             </span>
@@ -180,7 +177,7 @@ export default function ResultCard({ candidate }: ResultCardProps) {
       </div>
 
       {/* Sourcing Actions / Link Navigation */}
-      <div className="mt-5 pt-4 border-t border-white/5 flex flex-col gap-2">
+      <div className="mt-5 pt-4 border-t border-ink/10 flex flex-col gap-2">
         {candidate.is_synthetic === false ? (
           <div className="flex flex-col gap-2">
             <div className="grid grid-cols-2 gap-2">
@@ -189,40 +186,40 @@ export default function ResultCard({ candidate }: ResultCardProps) {
                   href={candidate.web_link}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-medium rounded-lg transition-all duration-200 ${
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-mono font-bold rounded-full transition-all duration-200 ${
                     verifyStatus === "reachable"
-                      ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25"
+                      ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/25"
                       : verifyStatus === "not_found"
-                      ? "bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25"
-                      : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/30"
+                      ? "bg-red-500/10 border border-red-500/30 text-red-600 hover:bg-red-500/20"
+                      : "bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 hover:bg-emerald-500/20"
                   }`}
                 >
                   <Globe className="w-3.5 h-3.5" />
-                  <span>Visit Source</span>
+                  <span>visit source</span>
                   <ArrowUpRight className="w-3 h-3" />
                 </a>
               ) : (
-                <div className="flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-medium rounded-lg bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed">
+                <div className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-mono font-bold rounded-full bg-ink/5 border border-ink/10 text-muted cursor-not-allowed">
                   <Globe className="w-3.5 h-3.5" />
-                  <span>No Direct Link</span>
+                  <span>no direct link</span>
                 </div>
               )}
-              
+
               {candidate.search_query_url ? (
                 <a
                   href={candidate.search_query_url}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-medium rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20 transition-all duration-200"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-mono font-bold rounded-full bg-ink text-white hover:bg-[#1a2233] transition-all duration-200"
                 >
                   <Search className="w-3.5 h-3.5" />
-                  <span>Search LinkedIn</span>
+                  <span>search linkedin</span>
                   <ArrowUpRight className="w-3 h-3" />
                 </a>
               ) : (
-                <div className="flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-medium rounded-lg bg-white/5 border border-white/10 text-gray-500 cursor-not-allowed">
+                <div className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-mono font-bold rounded-full bg-ink/5 border border-ink/10 text-muted cursor-not-allowed">
                   <Search className="w-3.5 h-3.5" />
-                  <span>Search LinkedIn</span>
+                  <span>search linkedin</span>
                 </div>
               )}
             </div>
@@ -234,10 +231,10 @@ export default function ResultCard({ candidate }: ResultCardProps) {
                   type="button"
                   disabled={verifying}
                   onClick={runVerification}
-                  className="text-[9px] font-mono text-gray-500 hover:text-[#00F0FF] disabled:text-gray-600 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="text-[9px] font-mono font-bold text-muted hover:text-[#04748c] disabled:text-muted/50 transition-colors flex items-center gap-1.5 cursor-pointer lowercase"
                 >
-                  <RefreshCw className={`w-2.5 h-2.5 ${verifying ? "animate-spin text-[#00F0FF]" : ""}`} />
-                  <span>{verifying ? "Re-Verifying URL..." : "Force Link Re-Check"}</span>
+                  <RefreshCw className={`w-2.5 h-2.5 ${verifying ? "animate-spin text-[#00B4D8]" : ""}`} />
+                  <span>{verifying ? "re-verifying url…" : "force link re-check"}</span>
                 </button>
               </div>
             )}
@@ -249,10 +246,10 @@ export default function ResultCard({ candidate }: ResultCardProps) {
                 href={candidate.search_query_url}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-medium rounded-lg bg-[#00F0FF]/5 border border-[#00F0FF]/10 text-[#00F0FF] hover:bg-[#00F0FF]/15 hover:border-[#00F0FF]/25 transition-all duration-200"
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-mono font-bold rounded-full bg-[#00B4D8]/10 border border-[#00B4D8]/25 text-[#04748c] hover:bg-[#00B4D8]/20 transition-all duration-200"
               >
                 <Search className="w-3.5 h-3.5" />
-                <span>Run X-Ray Google Search for Match</span>
+                <span>run x-ray google search for match</span>
                 <ArrowUpRight className="w-3 h-3" />
               </a>
             ) : (
@@ -260,10 +257,10 @@ export default function ResultCard({ candidate }: ResultCardProps) {
                 href={`https://www.google.com/search?q=site:linkedin.com/in/+%22${encodeURIComponent(candidate.title)}%22+%22${encodeURIComponent(candidate.location)}%22`}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-medium rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20 transition-all duration-200"
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-mono font-bold rounded-full bg-ink/5 border border-ink/10 text-ink/70 hover:bg-ink/10 transition-all duration-200"
               >
                 <Search className="w-3.5 h-3.5" />
-                <span>X-Ray Sourcing Lookup</span>
+                <span>x-ray sourcing lookup</span>
                 <ArrowUpRight className="w-3 h-3" />
               </a>
             )}
@@ -272,13 +269,13 @@ export default function ResultCard({ candidate }: ResultCardProps) {
       </div>
 
       {/* AI Match Relevance Note Footer */}
-      <div className="mt-5 pt-3 border-t border-white/5 bg-[#00F0FF]/[0.02] -mx-6 -mb-6 p-4 rounded-b-2xl border-t border-[#00F0FF]/10">
+      <div className="mt-5 -mx-6 -mb-6 px-6 py-4 rounded-b-3xl bg-[#00B4D8]/[0.05] border-t border-[#00B4D8]/15">
         <div className="flex gap-2 items-start">
-          <div className={`p-1 rounded-md flex-shrink-0 ${candidate.is_synthetic === false ? "bg-emerald-500/10 text-emerald-400" : "bg-[#00F0FF]/10 text-[#00F0FF]"}`}>
+          <div className="p-1 rounded-lg flex-shrink-0 bg-[#00B4D8]/15 text-[#04748c]">
             <Sparkles className="w-3 h-3" />
           </div>
-          <p className="text-[11px] leading-relaxed text-gray-300 font-sans">
-            <span className={`font-mono font-bold text-[9px] uppercase tracking-wider block mb-0.5 ${candidate.is_synthetic === false ? "text-emerald-400" : "text-[#00F0FF]"}`}>Sourcing Fit Match:</span>
+          <p className="text-[11px] leading-relaxed text-ink/70">
+            <span className="font-mono font-bold text-[9px] uppercase tracking-wider block mb-0.5 text-[#04748c]">sourcing fit match:</span>
             {candidate.ai_match_note}
           </p>
         </div>
