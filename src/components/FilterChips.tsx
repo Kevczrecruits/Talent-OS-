@@ -85,7 +85,7 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
             "seniority_level",
             undefined,
             <Award className="w-3.5 h-3.5" />,
-            "border-emerald-500/40 text-emerald-700 bg-emerald-500/10"
+            "border-[#00B4D8]/40 text-[#04748c] bg-[#00B4D8]/10"
           )}
 
         {/* Location Chip */}

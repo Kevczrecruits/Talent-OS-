@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Sparkles, RefreshCw, AlertCircle, ArrowRight, UserPlus, FileSearch, ExternalLink } from "lucide-react";
 import SourcingInput from "./components/SourcingInput";
 import FilterChips from "./components/FilterChips";
 import ResultCard from "./components/ResultCard";
+import PasscodeDialog from "./components/PasscodeDialog";
 import { SourcingCriteria, Candidate } from "./types";
 
 export default function App() {
@@ -24,8 +25,66 @@ export default function App() {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Passcode gate — the search UI stays visible; only execution is locked.
+  // The code is kept in sessionStorage and sent as the x-app-passcode header.
+  const [unlocked, setUnlocked] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem("talentos_pass") !== null;
+    } catch {
+      return false;
+    }
+  });
+  const [passOpen, setPassOpen] = useState(false);
+  const [passError, setPassError] = useState<string | null>(null);
+  const pendingSearch = useRef<{ query: string; hiringCriteria: string; model: string } | null>(null);
+
+  const passHeaders = (): Record<string, string> => {
+    try {
+      return { "X-App-Passcode": sessionStorage.getItem("talentos_pass") || "" };
+    } catch {
+      return { "X-App-Passcode": "" };
+    }
+  };
+
+  const handleUnauthorized = () => {
+    try {
+      sessionStorage.removeItem("talentos_pass");
+    } catch {}
+    pendingSearch.current = null;
+    setUnlocked(false);
+    setLoading(false);
+    setParsing(false);
+    setGenerating(false);
+    setPassError("incorrect passcode — try again.");
+    setPassOpen(true);
+  };
+
+  // Entry point from the search bar: lock check happens here so the
+  // natural-language input stays fully visible while locked.
+  const requestSearch = (query: string, hiringCriteria: string, model: string) => {
+    if (!unlocked) {
+      pendingSearch.current = { query, hiringCriteria, model };
+      setPassError(null);
+      setPassOpen(true);
+      return;
+    }
+    runSearch(query, hiringCriteria, model);
+  };
+
+  const handlePassSubmit = (code: string) => {
+    try {
+      sessionStorage.setItem("talentos_pass", code);
+    } catch {}
+    setUnlocked(true);
+    setPassOpen(false);
+    setPassError(null);
+    const p = pendingSearch.current;
+    pendingSearch.current = null;
+    if (p) runSearch(p.query, p.hiringCriteria, p.model);
+  };
+
   // Core search triggers both Parsing & Sourcing in sequence
-  const handleFullSearch = async (query: string, hiringCriteria: string, model: string) => {
+  const runSearch = async (query: string, hiringCriteria: string, model: string) => {
     setLoading(true);
     setParsing(true);
     setGenerating(false);
@@ -38,9 +97,14 @@ export default function App() {
       // Step 1: Query parser call
       const parseRes = await fetch("/api/parse", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...passHeaders() },
         body: JSON.stringify({ query, hiringCriteria, model }),
       });
+
+      if (parseRes.status === 401) {
+        handleUnauthorized();
+        return;
+      }
 
       if (!parseRes.ok) {
         const errData = await parseRes.json().catch(() => ({}));
@@ -58,9 +122,14 @@ export default function App() {
       // Step 2: Profiles synthesis call
       const candidatesRes = await fetch("/api/generate-candidates", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...passHeaders() },
         body: JSON.stringify({ criteria: parsedCriteria, model, sourcingMode: "grounded" }),
       });
+
+      if (candidatesRes.status === 401) {
+        handleUnauthorized();
+        return;
+      }
 
       if (!candidatesRes.ok) {
         const errData = await candidatesRes.json().catch(() => ({}));
@@ -94,9 +163,14 @@ export default function App() {
     try {
       const candidatesRes = await fetch("/api/generate-candidates", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...passHeaders() },
         body: JSON.stringify({ criteria, model: selectedModel, sourcingMode: "grounded" }),
       });
+
+      if (candidatesRes.status === 401) {
+        handleUnauthorized();
+        return;
+      }
 
       if (!candidatesRes.ok) {
         const errData = await candidatesRes.json().catch(() => ({}));
@@ -158,7 +232,7 @@ export default function App() {
               <span className="text-[9px] font-mono border border-ink/15 px-1.5 py-0.5 rounded-md text-muted uppercase">prototype v2</span>
             </div>
             <div className="flex items-center gap-2 font-mono text-[11px] text-muted">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[#00B4D8] shadow-[0_0_10px_#00B4D8] animate-pulse" />
               <span>server-side api sourcing enabled</span>
             </div>
           </nav>
@@ -176,10 +250,18 @@ export default function App() {
 
           {/* Input Panel */}
           <SourcingInput
-            onSearch={handleFullSearch}
+            onSearch={requestSearch}
             loading={loading}
+            locked={!unlocked}
             selectedModel={selectedModel}
             setSelectedModel={setSelectedModel}
+          />
+
+          <PasscodeDialog
+            open={passOpen}
+            error={passError}
+            onSubmit={handlePassSubmit}
+            onClose={() => setPassOpen(false)}
           />
 
           {/* Resilient Local Sourcing Fallback Status */}
@@ -206,13 +288,13 @@ export default function App() {
 
           {/* Grounded search succeeded — show real citation count */}
           {!isFallback && groundedSources.length > 0 && (
-            <div id="grounded-sources-notification" className="p-5 rounded-3xl glass border-emerald-500/30! flex flex-col gap-3">
+            <div id="grounded-sources-notification" className="p-5 rounded-3xl glass border-[#00B4D8]/30! flex flex-col gap-3">
               <div className="flex gap-3 items-start">
-                <div className="p-1.5 rounded-xl bg-emerald-500/15 text-emerald-600 flex-shrink-0">
+                <div className="p-1.5 rounded-xl bg-[#00B4D8]/15 text-[#04748c] flex-shrink-0">
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="text-xs font-mono font-bold text-emerald-700 uppercase tracking-wider">
+                  <h4 className="text-xs font-mono font-bold text-[#04748c] uppercase tracking-wider">
                     {searchEngine === "tavily"
                       ? `live sourced via linkedin, academic & github search — ${groundedSources.length} profile source${groundedSources.length === 1 ? "" : "s"} found`
                       : `live search verified via google grounding — ${groundedSources.length} source${groundedSources.length === 1 ? "" : "s"} found`}
@@ -226,8 +308,8 @@ export default function App() {
               </div>
 
               {/* Citation List */}
-              <div className="mt-2 pt-3 border-t border-emerald-500/15 space-y-1.5">
-                <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-600 block">verified web references & citations:</span>
+              <div className="mt-2 pt-3 border-t border-[#00B4D8]/15 space-y-1.5">
+                <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-[#04748c] block">verified web references & citations:</span>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
                   {groundedSources.map((source, index) => {
                     const colonIndex = source.indexOf(": http");
@@ -247,8 +329,8 @@ export default function App() {
                     }
 
                     return (
-                      <div key={index} className="flex items-center gap-1.5 text-xs bg-white/70 border border-emerald-500/15 hover:border-emerald-500/40 px-2.5 py-1.5 rounded-xl truncate">
-                        <span className="text-emerald-600 font-mono text-[10px] flex-shrink-0">[{index + 1}]</span>
+                      <div key={index} className="flex items-center gap-1.5 text-xs bg-white/70 border border-[#00B4D8]/15 hover:border-[#00B4D8]/40 px-2.5 py-1.5 rounded-xl truncate">
+                        <span className="text-[#04748c] font-mono text-[10px] flex-shrink-0">[{index + 1}]</span>
                         {url ? (
                           <a
                             href={url}
@@ -367,7 +449,7 @@ export default function App() {
                   <h2 className="font-extrabold text-xl text-ink lowercase tracking-tight">
                     {isFallback ? "local placeholder results" : searchEngine === "tavily" ? "live multi-source search results" : "live grounded search results"}
                   </h2>
-                  <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full border ${isFallback ? "bg-amber-500/10 border-amber-500/30 text-amber-700" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"}`}>
+                  <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full border ${isFallback ? "bg-amber-500/10 border-amber-500/30 text-amber-700" : "bg-[#00B4D8]/10 border-[#00B4D8]/30 text-[#04748c]"}`}>
                     {candidates.length} profiles
                   </span>
                 </div>

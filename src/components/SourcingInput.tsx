@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Search, ChevronDown, ChevronUp, Sliders, CornerDownLeft, Globe } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, Sliders, CornerDownLeft, Globe, Lock } from "lucide-react";
 import ModelSelector from "./ModelSelector";
 
 interface SourcingInputProps {
   onSearch: (query: string, criteria: string, model: string) => void;
   loading: boolean;
+  locked: boolean;
   selectedModel: string;
   setSelectedModel: (model: string) => void;
 }
@@ -35,6 +36,7 @@ const EXAMPLE_QUERIES = [
 export default function SourcingInput({
   onSearch,
   loading,
+  locked,
   selectedModel,
   setSelectedModel,
 }: SourcingInputProps) {
@@ -70,7 +72,7 @@ export default function SourcingInput({
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
         <div>
           <div className="kicker">
-            <span>sourcing channel · <span className="text-emerald-600">live multi-source search</span></span>
+            <span>sourcing channel · <span className="text-[#04748c]">live multi-source search</span></span>
           </div>
           <h2 className="font-extrabold text-2xl md:text-3xl text-ink mt-2.5 tracking-tight lowercase">
             describe your <span className="text-[#00B4D8]">ideal hire</span>
@@ -85,10 +87,10 @@ export default function SourcingInput({
       </div>
 
       {/* Live grounding notice (replaces the old mode switcher) */}
-      <div className="mb-6 flex items-center gap-3 p-3.5 rounded-2xl bg-emerald-500/[0.07] border border-emerald-500/20">
-        <Globe className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+      <div className="mb-6 flex items-center gap-3 p-3.5 rounded-2xl bg-[#00B4D8]/[0.07] border border-[#00B4D8]/20">
+        <Globe className="w-4 h-4 text-[#04748c] flex-shrink-0" />
         <div className="text-xs text-ink/70">
-          Runs <strong className="text-emerald-700">real, live searches across LinkedIn, academic sources (Google Scholar / arXiv / Semantic Scholar), and GitHub</strong> in parallel to find real experts, public profiles, and live web source links. No mock/sandbox data is generated.
+          Runs <strong className="text-[#04748c]">real, live searches across LinkedIn, academic sources (Google Scholar / arXiv / Semantic Scholar), and GitHub</strong> in parallel to find real experts, public profiles, and live web source links. No mock/sandbox data is generated.
         </div>
       </div>
 
@@ -110,7 +112,7 @@ export default function SourcingInput({
             <CornerDownLeft className="w-3 h-3" />
           </div>
           <div className="absolute right-4 top-4 text-muted">
-            <Search className={`w-4 h-4 ${query.trim() ? "text-emerald-600" : "text-muted/50"} transition-colors`} />
+            <Search className={`w-4 h-4 ${query.trim() ? "text-[#00B4D8]" : "text-muted/50"} transition-colors`} />
           </div>
         </div>
 
@@ -176,6 +178,11 @@ export default function SourcingInput({
             <>
               <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin border-[#00B4D8]" />
               <span>searching linkedin, academic & github sources…</span>
+            </>
+          ) : locked ? (
+            <>
+              <Lock className="w-4 h-4" />
+              <span>unlock to search</span>
             </>
           ) : (
             <>

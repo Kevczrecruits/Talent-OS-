@@ -99,8 +99,8 @@ export default function ResultCard({ candidate }: ResultCardProps) {
               </h3>
               {candidate.is_synthetic === false ? (
                 <>
-                  <span className="text-[8px] font-mono tracking-wider uppercase font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 flex items-center gap-1">
-                    <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[8px] font-mono tracking-wider uppercase font-bold px-1.5 py-0.5 rounded-full bg-[#00B4D8]/10 border border-[#00B4D8]/30 text-[#04748c] flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-[#00B4D8] shadow-[0_0_8px_#00B4D8] animate-pulse" />
                     live match
                   </span>
 
@@ -112,7 +112,7 @@ export default function ResultCard({ candidate }: ResultCardProps) {
                     </span>
                   )}
                   {verifyStatus === "reachable" && (
-                    <span className="text-[8px] font-mono tracking-wider uppercase font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-700 flex items-center gap-1" title="Connection verified.">
+                    <span className="text-[8px] font-mono tracking-wider uppercase font-bold px-1.5 py-0.5 rounded-full bg-[#00B4D8]/10 border border-[#00B4D8]/40 text-[#04748c] flex items-center gap-1" title="Connection verified.">
                       ● active link
                     </span>
                   )}
@@ -188,10 +188,10 @@ export default function ResultCard({ candidate }: ResultCardProps) {
                   rel="noreferrer noopener"
                   className={`flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-mono font-bold rounded-full transition-all duration-200 ${
                     verifyStatus === "reachable"
-                      ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/25"
+                      ? "bg-[#00B4D8]/15 border border-[#00B4D8]/40 text-[#04748c] hover:bg-[#00B4D8]/25"
                       : verifyStatus === "not_found"
                       ? "bg-red-500/10 border border-red-500/30 text-red-600 hover:bg-red-500/20"
-                      : "bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 hover:bg-emerald-500/20"
+                      : "bg-[#00B4D8]/10 border border-[#00B4D8]/25 text-[#04748c] hover:bg-[#00B4D8]/20"
                   }`}
                 >
                   <Globe className="w-3.5 h-3.5" />

@@ -726,13 +726,23 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Passcode gate — keeps public visitors from burning API quota.
+  // Set APP_PASSCODE in env; the frontend sends it as the x-app-passcode header.
+  // When no passcode is configured, the API stays open (local dev).
+  const APP_PASSCODE = process.env.APP_PASSCODE || "";
+  const requirePasscode = (req: any, res: any, next: any) => {
+    if (!APP_PASSCODE) return next();
+    if (req.headers["x-app-passcode"] === APP_PASSCODE) return next();
+    return res.status(401).json({ error: "Invalid or missing passcode." });
+  };
+
   // API Health Check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
   });
 
   // 1. Parsing endpoint
-  app.post("/api/parse", async (req, res) => {
+  app.post("/api/parse", requirePasscode, async (req, res) => {
     const { query, hiringCriteria, model } = req.body;
     try {
       if (!query || typeof query !== "string") {
@@ -814,7 +824,7 @@ Parse this query into structured recruiting filters. Ensure all arrays are popul
   });
 
   // 2. Generate candidates endpoint
-  app.post("/api/generate-candidates", async (req, res) => {
+  app.post("/api/generate-candidates", requirePasscode, async (req, res) => {
     const { criteria, model, sourcingMode } = req.body;
     try {
       if (!criteria) {
