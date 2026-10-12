@@ -1,15 +1,1 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { checkPasscode, handleGenerateCandidates } from "./_lib";
-
-export const maxDuration = 60;
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-  if (!checkPasscode(req.headers)) {
-    return res.status(401).json({ error: "Invalid or missing passcode." });
-  }
-  const result = await handleGenerateCandidates(req.body);
-  return res.status(result.status).json(result.json);
-}
+aW1wb3J0IHR5cGUgeyBWZXJjZWxSZXF1ZXN0LCBWZXJjZWxSZXNwb25zZSB9IGZyb20gIkB2ZXJjZWwvbm9kZSI7CmltcG9ydCB7IGNoZWNrUGFzc2NvZGUsIGhhbmRsZUdlbmVyYXRlQ2FuZGlkYXRlcyB9IGZyb20gIi4vX2xpYi5qcyI7CgpleHBvcnQgY29uc3QgbWF4RHVyYXRpb24gPSA2MDsKCmV4cG9ydCBkZWZhdWx0IGFzeW5jIGZ1bmN0aW9uIGhhbmRsZXIocmVxOiBWZXJjZWxSZXF1ZXN0LCByZXM6IFZlcmNlbFJlc3BvbnNlKSB7CiAgaWYgKHJlcS5tZXRob2QgIT09ICJQT1NUIikgewogICAgcmV0dXJuIHJlcy5zdGF0dXMoNDA1KS5qc29uKHsgZXJyb3I6ICJNZXRob2Qgbm90IGFsbG93ZWQiIH0pOwogIH0KICBpZiAoIWNoZWNrUGFzc2NvZGUocmVxLmhlYWRlcnMpKSB7CiAgICByZXR1cm4gcmVzLnN0YXR1cyg0MDEpLmpzb24oeyBlcnJvcjogIkludmFsaWQgb3IgbWlzc2luZyBwYXNzY29kZS4iIH0pOwogIH0KICBjb25zdCByZXN1bHQgPSBhd2FpdCBoYW5kbGVHZW5lcmF0ZUNhbmRpZGF0ZXMocmVxLmJvZHkpOwogIHJldHVybiByZXMuc3RhdHVzKHJlc3VsdC5zdGF0dXMpLmpzb24ocmVzdWx0Lmpzb24pOwp9Cg==
