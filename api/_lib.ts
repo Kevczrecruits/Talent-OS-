@@ -738,7 +738,7 @@ const LLM_PROVIDER = (process.env.LLM_PROVIDER || "gemini").toLowerCase();
 
 function resolveModel(requested: string | undefined): string {
   if (LLM_PROVIDER === "deepseek") {
-    return requested && requested.startsWith("deepseek-") ? requested : "deepseek-chat";
+    return requested && requested.startsWith("deepseek-") ? requested : "deepseek-flash";
   }
   return requested && requested.startsWith("gemini-") ? requested : "gemini-3.5-flash";
 }

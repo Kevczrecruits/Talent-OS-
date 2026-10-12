@@ -7,7 +7,7 @@ import PasscodeDialog from "./components/PasscodeDialog";
 import { SourcingCriteria, Candidate } from "./types";
 
 export default function App() {
-  const [selectedModel, setSelectedModel] = useState("deepseek-chat");
+  const [selectedModel, setSelectedModel] = useState("deepseek-flash");
   const [criteria, setCriteria] = useState<SourcingCriteria | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [isFallback, setIsFallback] = useState(false);
@@ -274,13 +274,13 @@ export default function App() {
                 <h4 className="text-xs font-mono font-bold text-amber-700 uppercase tracking-wider flex items-center gap-2 flex-wrap">
                   <span>local match active — not real results</span>
                   <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 font-semibold border border-amber-500/30">
-                    {fallbackReason === "rate_limit" ? "rate limit hit" : "gemini api error"}
+                    {fallbackReason === "rate_limit" ? "rate limit hit" : "llm api error"}
                   </span>
                 </h4>
                 <p className="text-xs text-ink/70 mt-1 leading-relaxed">
                   {fallbackReason === "rate_limit"
                     ? "Gemini's quota was exhausted for this request. These candidates are locally-generated placeholders, not real people or a real search."
-                    : "The Gemini API call failed (not a quota issue). These candidates are locally-generated placeholders, not real people or a real search."}
+                    : "The LLM API call failed (not a quota issue). These candidates are locally-generated placeholders, not real people or a real search."}
                 </p>
               </div>
             </div>

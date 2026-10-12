@@ -9,14 +9,14 @@ interface ModelOption {
 
 const MODELS: ModelOption[] = [
   {
-    id: "deepseek-chat",
-    name: "DeepSeek V3",
-    description: "fast + cheap — best for quick sourcing iterations"
+    id: "deepseek-flash",
+    name: "DeepSeek V4.1 Flash",
+    description: "fast + cheapest — best for quick sourcing iterations"
   },
   {
-    id: "deepseek-reasoner",
-    name: "DeepSeek R1",
-    description: "deep reasoning for complex academic/technical queries"
+    id: "deepseek-v4-pro",
+    name: "DeepSeek V4 Pro",
+    description: "strongest reasoning for complex academic/technical queries"
   }
 ];
 
@@ -41,7 +41,7 @@ export default function ModelSelector({ selectedModel, onChange }: ModelSelector
           >
             {MODELS.map((model) => (
               <option key={model.id} value={model.id} className="bg-white text-ink">
-                {model.name} {model.id === "deepseek-chat" ? "— fast" : "— deep"}
+                {model.name} {model.id === "deepseek-flash" ? "— fast" : "— pro"}
               </option>
             ))}
           </select>
