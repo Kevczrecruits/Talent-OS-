@@ -1,0 +1,1 @@
+{"buildCommand":"vite build","functions":{"api/generate-candidates.ts":{"maxDuration":60},"api/parse.ts":{"maxDuration":30}},"outputDirectory":"dist"}
