@@ -12,14 +12,17 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
   if (!criteria) return null;
 
   // Check if we have any active filters at all
+  const requiredSkills: string[] = Array.isArray(criteria.required_skills) ? criteria.required_skills : [];
+  const preferredSkills: string[] = Array.isArray(criteria.preferred_skills) ? criteria.preferred_skills : [];
+  const educationSignals: string[] = Array.isArray(criteria.education_signals) ? criteria.education_signals : [];
   const hasActiveFilters =
     !!criteria.role ||
     !!criteria.seniority_level ||
     !!criteria.location ||
-    criteria.required_skills.length > 0 ||
-    criteria.preferred_skills.length > 0 ||
+    requiredSkills.length > 0 ||
+    preferredSkills.length > 0 ||
     !!criteria.industry ||
-    criteria.education_signals.length > 0 ||
+    educationSignals.length > 0 ||
     !!criteria.diversity_or_demographic_filters;
 
   if (!hasActiveFilters) {
@@ -109,7 +112,7 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
           )}
 
         {/* Required Skills */}
-        {criteria.required_skills.map((skill) =>
+        {requiredSkills.map((skill) =>
           renderChip(
             skill,
             "required_skills",
@@ -120,7 +123,7 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
         )}
 
         {/* Preferred Skills */}
-        {criteria.preferred_skills.map((skill) =>
+        {preferredSkills.map((skill) =>
           renderChip(
             skill,
             "preferred_skills",
@@ -131,7 +134,7 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
         )}
 
         {/* Education Signals */}
-        {criteria.education_signals.map((edu) =>
+        {educationSignals.map((edu) =>
           renderChip(
             edu,
             "education_signals",

@@ -786,6 +786,70 @@ function extractJson(text: string): any {
   return JSON.parse(raw);
 }
 
+// The exact criteria shape the frontend (FilterChips, candidate generation)
+// expects. DeepSeek has no responseSchema support like Gemini, so we both
+// describe this schema in the prompt AND normalize the result — the model
+// otherwise invents its own keys (title/skills/seniority/...) which crashes
+// the UI (e.g. `criteria.required_skills.length` on undefined).
+const CRITERIA_JSON_SCHEMA = `{
+  "role": "string — primary candidate role title",
+  "seniority_level": "string — seniority level or range",
+  "location": "string — location or remote requirements",
+  "required_skills": ["string — must-have skill tags"],
+  "preferred_skills": ["string — nice-to-have skill tags"],
+  "industry": "string — target industry vertical",
+  "education_signals": ["string — degrees, schools, research credentials"],
+  "diversity_or_demographic_filters": "string — demographic keywords, if any",
+  "other_notes": "string — extra observations"
+}`;
+
+function toStringArray(v: any): string[] {
+  if (Array.isArray(v)) return v.map((x) => String(x)).filter(Boolean);
+  if (typeof v === "string" && v.trim()) return [v.trim()];
+  return [];
+}
+
+function toStringVal(v: any): string {
+  if (Array.isArray(v)) return v.map((x) => String(x)).filter(Boolean).join(", ");
+  if (v === null || v === undefined) return "";
+  if (typeof v === "object") {
+    // e.g. { title: "React Engineer", level: "Senior" }
+    const t = (v as any).title || (v as any).name || (v as any).value;
+    return t ? String(t) : "";
+  }
+  return String(v);
+}
+
+export function normalizeCriteria(raw: any): Record<string, any> {
+  const r = raw && typeof raw === "object" ? raw : {};
+  const pick = (...keys: string[]): any => {
+    for (const k of keys) {
+      if (r[k] !== undefined && r[k] !== null && r[k] !== "") return r[k];
+    }
+    return undefined;
+  };
+  const role = toStringVal(pick("role", "title", "job_title", "position"));
+  const seniority_level = toStringVal(pick("seniority_level", "seniority", "experience", "level"));
+  const location = toStringVal(pick("location", "locations", "remote"));
+  const required_skills = toStringArray(pick("required_skills", "skills", "must_have_skills", "technologies"));
+  const preferred_skills = toStringArray(pick("preferred_skills", "nice_to_have_skills", "keywords", "bonus_skills"));
+  const industry = toStringVal(pick("industry", "industries", "sector"));
+  const education_signals = toStringArray(pick("education_signals", "education", "degrees", "schools"));
+  const diversity_or_demographic_filters = toStringVal(pick("diversity_or_demographic_filters", "diversity", "demographics"));
+  const other_notes = toStringVal(pick("other_notes", "notes", "company_size"));
+  return {
+    role,
+    seniority_level,
+    location,
+    required_skills,
+    preferred_skills,
+    industry,
+    education_signals,
+    diversity_or_demographic_filters,
+    other_notes,
+  };
+}
+
 export async function handleParse(body: any): Promise<{ status: number; json: any }> {
 
     const { query, hiringCriteria, model } = body;
@@ -806,8 +870,12 @@ Parse this query into structured recruiting filters. Ensure all arrays are popul
 
       let parsedJSON: any;
       if (LLM_PROVIDER === "deepseek") {
-        const content = await callDeepSeek(systemInstruction, prompt, modelName);
-        parsedJSON = extractJson(content);
+        const schemaPrompt = `${prompt}
+
+Output strictly a JSON object matching this schema (all keys present, arrays never null):
+${CRITERIA_JSON_SCHEMA}`;
+        const content = await callDeepSeek(systemInstruction, schemaPrompt, modelName);
+        parsedJSON = normalizeCriteria(extractJson(content));
       } else {
         const response = await getGeminiClient().models.generateContent({
         model: modelName,
