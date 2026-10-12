@@ -9,14 +9,14 @@ interface ModelOption {
 
 const MODELS: ModelOption[] = [
   {
-    id: "gemini-3.5-flash",
-    name: "Gemini 3.5 Flash",
-    description: "ultra-fast response time, perfect for quick iterations"
+    id: "deepseek-chat",
+    name: "DeepSeek V3",
+    description: "fast + cheap — best for quick sourcing iterations"
   },
   {
-    id: "gemini-3.1-pro-preview",
-    name: "Gemini 3.1 Pro",
-    description: "deep, advanced reasoning for complex academic/technical queries"
+    id: "deepseek-reasoner",
+    name: "DeepSeek R1",
+    description: "deep reasoning for complex academic/technical queries"
   }
 ];
 
@@ -41,7 +41,7 @@ export default function ModelSelector({ selectedModel, onChange }: ModelSelector
           >
             {MODELS.map((model) => (
               <option key={model.id} value={model.id} className="bg-white text-ink">
-                {model.name} {model.id === "gemini-3.5-flash" ? "— fast" : "— deep"}
+                {model.name} {model.id === "deepseek-chat" ? "— fast" : "— deep"}
               </option>
             ))}
           </select>

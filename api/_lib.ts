@@ -728,6 +728,64 @@ export function checkPasscode(headers: Record<string, string | string[] | undefi
   return val === APP_PASSCODE;
 }
 
+// ==========================================
+// LLM PROVIDER SWITCH — gemini (default) or deepseek.
+// Set LLM_PROVIDER=deepseek + DEEPSEEK_API_KEY to use DeepSeek instead.
+// Note: DeepSeek has no native web-search grounding; the Gemini
+// googleSearch fallback path only runs under the gemini provider.
+// ==========================================
+const LLM_PROVIDER = (process.env.LLM_PROVIDER || "gemini").toLowerCase();
+
+function resolveModel(requested: string | undefined): string {
+  if (LLM_PROVIDER === "deepseek") {
+    return requested && requested.startsWith("deepseek-") ? requested : "deepseek-chat";
+  }
+  return requested && requested.startsWith("gemini-") ? requested : "gemini-3.5-flash";
+}
+
+async function callDeepSeek(systemInstruction: string, prompt: string, model: string): Promise<string> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    throw new Error("DEEPSEEK_API_KEY environment variable is required but missing.");
+  }
+  // deepseek-reasoner doesn't support response_format: json_object — the
+  // extractJson() fence-stripper below handles its raw output instead.
+  const body: any = {
+    model,
+    messages: [
+      { role: "system", content: systemInstruction },
+      { role: "user", content: prompt },
+    ],
+  };
+  if (model !== "deepseek-reasoner") {
+    body.response_format = { type: "json_object" };
+  }
+  const res = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`DeepSeek API error ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const data: any = await res.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content || typeof content !== "string") {
+    throw new Error("Empty response from DeepSeek.");
+  }
+  return content;
+}
+
+function extractJson(text: string): any {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = (fenced ? fenced[1] : text).trim();
+  return JSON.parse(raw);
+}
+
 export async function handleParse(body: any): Promise<{ status: number; json: any }> {
 
     const { query, hiringCriteria, model } = body;
@@ -736,8 +794,7 @@ export async function handleParse(body: any): Promise<{ status: number; json: an
         return { status: 400, json: { error: "Query is required" } };
       }
 
-      const client = getGeminiClient();
-      const modelName = model || "gemini-3.5-flash";
+      const modelName = resolveModel(model);
 
       const systemInstruction = `You are an expert AI recruiting and talent intelligence parser. Your task is to extract clear structural sourcing criteria from natural-language queries.
 Do not add any preamble, markdown fences, or extra text. Output strictly a JSON object with the requested properties.`;
@@ -747,7 +804,12 @@ ${hiringCriteria ? `Additional hiring criteria context: "${hiringCriteria}"` : "
 
 Parse this query into structured recruiting filters. Ensure all arrays are populated if values exist, or left empty if they don't.`;
 
-      const response = await client.models.generateContent({
+      let parsedJSON: any;
+      if (LLM_PROVIDER === "deepseek") {
+        const content = await callDeepSeek(systemInstruction, prompt, modelName);
+        parsedJSON = extractJson(content);
+      } else {
+        const response = await getGeminiClient().models.generateContent({
         model: modelName,
         contents: prompt,
         config: {
@@ -800,10 +862,11 @@ Parse this query into structured recruiting filters. Ensure all arrays are popul
         throw new Error("No response received from Gemini.");
       }
 
-      const parsedJSON = JSON.parse(response.text.trim());
+      parsedJSON = JSON.parse(response.text.trim());
+      }
       return { status: 200, json: parsedJSON };
     } catch (error: any) {
-      console.warn("Gemini API Parse failed, executing local fallback parser: ", error.message || error);
+      console.warn("LLM Parse failed, executing local fallback parser: ", error.message || error);
       // Seamlessly execute local high-fidelity parsing
       const fallbackResult = parseQueryLocally(query || "", hiringCriteria || "");
       return { status: 200, json: fallbackResult };
@@ -818,8 +881,10 @@ export async function handleGenerateCandidates(body: any): Promise<{ status: num
         return { status: 400, json: { error: "Sourcing criteria object is required" } };
       }
 
-      const client = getGeminiClient();
-      const modelName = model || "gemini-3.5-flash";
+      const modelName = resolveModel(model);
+      // Lazily created — only the Gemini provider paths need it, so a
+      // DeepSeek deployment doesn't require GEMINI_API_KEY to be set.
+      const getClient = () => getGeminiClient();
       const tavilyApiKey = process.env.TAVILY_API_KEY;
 
       let parsedJSON: any = null;
@@ -890,7 +955,11 @@ ${searchResultsText}
 Extract and structure every genuinely distinct, real candidate you can verify from these live search results into the required JSON format — do not artificially limit the count. If a candidate's profile is found, use their exact LinkedIn, GitHub, Scholar, or other profile URL as the 'web_link' and the 'search_query_url'.`;
 
             try {
-              const response = await client.models.generateContent({
+              if (LLM_PROVIDER === "deepseek") {
+                const content = await callDeepSeek(tavilyStructureSystemInstruction, tavilyStructurePrompt, modelName);
+                parsedJSON = extractJson(content);
+              } else {
+              const response = await getClient().models.generateContent({
                 model: modelName,
                 contents: tavilyStructurePrompt,
                 config: {
@@ -935,8 +1004,9 @@ Extract and structure every genuinely distinct, real candidate you can verify fr
                 console.warn("Gemini Tavily structure response was empty. Falling back.");
                 usedTavily = false;
               }
+              }
             } catch (structureError: any) {
-              console.warn("Gemini parsing of Tavily results failed (likely quota). Parsing Tavily results locally using fallback parser:", structureError.message || structureError);
+              console.warn("LLM parsing of Tavily results failed (likely quota). Parsing Tavily results locally using fallback parser:", structureError.message || structureError);
               const localCandidates = parseTavilyResultsLocally(searchResults, criteria);
               parsedJSON = { candidates: localCandidates };
             }
@@ -944,12 +1014,17 @@ Extract and structure every genuinely distinct, real candidate you can verify fr
             console.warn("Tavily returned 0 search results. Falling back.");
           }
         } catch (tavilyError: any) {
-          console.warn("Tavily pipeline failed, falling back to standard Gemini Google Search tool:", tavilyError.message || tavilyError);
+          console.warn("Tavily pipeline failed, falling back to LLM web grounding:", tavilyError.message || tavilyError);
         }
       }
 
-      // If Tavily wasn't used or failed, run native Gemini Google Search Tool
+      // If Tavily wasn't used or failed, run native Gemini Google Search Tool.
+      // DeepSeek has no web-grounding tool, so under that provider we skip
+      // straight to the local fallback engines (outer catch).
       if (!usedTavily) {
+        if (LLM_PROVIDER === "deepseek") {
+          throw new Error("Tavily unavailable and DeepSeek has no native web grounding — using local fallback.");
+        }
         console.log("[Search] Running native Gemini googleSearch grounding tool...");
         const groundedSystemInstruction = `You are an elite, live internet-grounded talent sourcing intelligence agent. Use Google Search to locate actual, real-world, verifiable professionals, researchers, academic specialists, or engineers matching the given sourcing criteria.
 Locate real people with profiles on public sites like LinkedIn, GitHub, Google Scholar, university staff directories, or enterprise bio pages.
@@ -959,7 +1034,7 @@ List 6-8 candidates. Be explicit and factual — only include people you actuall
         const groundedPrompt = `Search the web and find real candidates (academic researchers, enterprise experts, or engineers) that match these recruitment filters:
 ${JSON.stringify(criteria, null, 2)}`;
 
-        const groundedResponse = await client.models.generateContent({
+        const groundedResponse = await getClient().models.generateContent({
           model: modelName,
           contents: groundedPrompt,
           config: {
@@ -989,7 +1064,7 @@ ${realSources.length ? realSources.join("\n") : "(no explicit source links captu
 
 Convert the above into the required JSON schema, one entry per candidate found. If fewer than 6 real candidates were found, only return the ones that are real — do not pad with invented people.`;
 
-        const response = await client.models.generateContent({
+        const response = await getClient().models.generateContent({
           model: modelName,
           contents: structurePrompt,
           config: {
@@ -1048,7 +1123,7 @@ Convert the above into the required JSON schema, one entry per candidate found. 
       const message = error?.message || String(error);
       const isRateLimit = message.includes("429") || message.toLowerCase().includes("resource_exhausted") || message.toLowerCase().includes("quota");
       console.warn(
-        `Gemini API Candidate Generation failed (mode=${sourcingMode}, rateLimit=${isRateLimit}), executing local fallback engine: `,
+        `LLM Candidate Generation failed (mode=${sourcingMode}, rateLimit=${isRateLimit}), executing local fallback engine: `,
         message
       );
       // Seamlessly execute local high-fidelity generator

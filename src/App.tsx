@@ -7,7 +7,7 @@ import PasscodeDialog from "./components/PasscodeDialog";
 import { SourcingCriteria, Candidate } from "./types";
 
 export default function App() {
-  const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash");
+  const [selectedModel, setSelectedModel] = useState("deepseek-chat");
   const [criteria, setCriteria] = useState<SourcingCriteria | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [isFallback, setIsFallback] = useState(false);
