@@ -75,15 +75,22 @@ export default function ResultCard({ candidate }: ResultCardProps) {
   };
 
   // Use a stable gradient based on the candidate's name
+  const safeName = candidate.name || "candidate";
   const gradientIndex = Math.abs(
-    candidate.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    safeName.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
   ) % AVATAR_GRADIENTS.length;
+
+  // Defensive: the API should normalize, but never let a malformed
+  // candidate crash the whole results grid again.
+  const topSkills: string[] = Array.isArray(candidate.top_skills)
+    ? candidate.top_skills.map((s) => String(s))
+    : [];
 
   const gradient = AVATAR_GRADIENTS[gradientIndex];
 
   return (
     <div
-      id={`candidate-card-${candidate.name.replace(/\s+/g, "-").toLowerCase()}`}
+      id={`candidate-card-${safeName.replace(/\s+/g, "-").toLowerCase()}`}
       className="group relative rounded-3xl glass p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(0,0,0,0.07)] flex flex-col justify-between"
     >
       <div>
@@ -165,7 +172,7 @@ export default function ResultCard({ candidate }: ResultCardProps) {
 
         {/* Key skills rendering */}
         <div className="flex flex-wrap gap-1.5 mt-4">
-          {candidate.top_skills.map((skill, index) => (
+          {topSkills.map((skill, index) => (
             <span
               key={`${skill}-${index}`}
               className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-ink/[0.06] text-ink"

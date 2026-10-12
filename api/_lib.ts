@@ -820,6 +820,57 @@ function toStringVal(v: any): string {
   return String(v);
 }
 
+// Candidate schema the frontend ResultCard expects. Same story as criteria:
+// DeepSeek invents its own keys (skills/years_experience/match_reason...)
+// without an explicit schema, and missing arrays crash the render.
+const CANDIDATE_JSON_SCHEMA = `{
+  "candidates": [
+    {
+      "name": "string — full name",
+      "title": "string — professional title",
+      "company": "string — company or organization",
+      "location": "string — geographical location",
+      "top_skills": ["string — key skills"],
+      "years_of_experience": "string — e.g. '8 years'",
+      "summary": "string — one-line professional pitch",
+      "ai_match_note": "string — why they match the criteria",
+      "web_link": "string — exact profile URL from the search results",
+      "search_query_url": "string — same profile URL (fallback search link)",
+      "is_synthetic": false
+    }
+  ]
+}`;
+
+function normalizeCandidate(raw: any): Record<string, any> {
+  const r = raw && typeof raw === "object" ? raw : {};
+  const pick = (...keys: string[]): any => {
+    for (const k of keys) {
+      if (r[k] !== undefined && r[k] !== null && r[k] !== "") return r[k];
+    }
+    return undefined;
+  };
+  const webLink = toStringVal(pick("web_link", "url", "profile_url", "link"));
+  return {
+    name: toStringVal(pick("name", "full_name")) || "Unknown",
+    title: toStringVal(pick("title", "position", "role")),
+    company: toStringVal(pick("company", "organization", "employer")),
+    location: toStringVal(pick("location", "city")),
+    top_skills: toStringArray(pick("top_skills", "skills", "key_skills", "technologies")),
+    years_of_experience: toStringVal(pick("years_of_experience", "years_experience", "experience")),
+    summary: toStringVal(pick("summary", "bio", "pitch")),
+    ai_match_note: toStringVal(pick("ai_match_note", "match_reason", "match_note", "reason")),
+    web_link: webLink,
+    search_query_url: toStringVal(pick("search_query_url")) || webLink,
+    is_synthetic: pick("is_synthetic") === true,
+  };
+}
+
+function normalizeCandidates(parsed: any): { candidates: Record<string, any>[] } {
+  const arr = Array.isArray(parsed) ? parsed : parsed?.candidates;
+  if (!Array.isArray(arr)) return { candidates: [] };
+  return { candidates: arr.map(normalizeCandidate) };
+}
+
 export function normalizeCriteria(raw: any): Record<string, any> {
   const r = raw && typeof raw === "object" ? raw : {};
   const pick = (...keys: string[]): any => {
@@ -1024,8 +1075,12 @@ Extract and structure every genuinely distinct, real candidate you can verify fr
 
             try {
               if (LLM_PROVIDER === "deepseek") {
-                const content = await callDeepSeek(tavilyStructureSystemInstruction, tavilyStructurePrompt, modelName);
-                parsedJSON = extractJson(content);
+                const schemaPrompt = `${tavilyStructurePrompt}
+
+Output strictly a JSON object matching this schema (all keys present on every candidate, arrays never null, is_synthetic false):
+${CANDIDATE_JSON_SCHEMA}`;
+                const content = await callDeepSeek(tavilyStructureSystemInstruction, schemaPrompt, modelName);
+                parsedJSON = normalizeCandidates(extractJson(content));
               } else {
               const response = await getClient().models.generateContent({
                 model: modelName,
