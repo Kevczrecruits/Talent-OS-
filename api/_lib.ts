@@ -898,6 +898,53 @@ function normalizeCandidates(parsed: any): { candidates: Record<string, any>[] }
   return { candidates: arr.map(normalizeCandidate) };
 }
 
+// Sweeps Google Scholar / Semantic Scholar author pages the LLM skipped and
+// adds them as thin-but-real cards. Deterministic and instant (no LLM call),
+// deduped against existing candidates by name.
+function mergeScholarAuthors(parsedJSON: any, searchResults: any[], criteria: any): any {
+  if (!parsedJSON || typeof parsedJSON !== "object") parsedJSON = { candidates: [] };
+  if (!Array.isArray(parsedJSON.candidates)) parsedJSON.candidates = [];
+  const existing = new Set(
+    (parsedJSON.candidates as any[])
+      .map((c: any) => String(c?.name || "").toLowerCase().trim())
+      .filter(Boolean)
+  );
+  const venues: string[] = Array.isArray(criteria?.publication_venues) ? criteria.publication_venues : [];
+  const venueNote = venues.length > 0 ? ` — publications at ${venues.slice(0, 5).join(", ")}` : "";
+  let added = 0;
+  for (const r of searchResults) {
+    if (added >= 10) break;
+    const url: string = r?.url || "";
+    const lu = url.toLowerCase();
+    if (!lu.includes("scholar.google.") && !lu.includes("semanticscholar.org")) continue;
+    const cleaned: string = String(r.title || "")
+      .replace(/\s*[|｜\-–]\s*(Google Scholar|Semantic Scholar).*$/i, "")
+      .trim();
+    const name = cleaned.split(/[,|｜]/)[0].trim();
+    if (!name || name.length > 60) continue;
+    const key = name.toLowerCase();
+    if (existing.has(key)) continue;
+    if ([...existing].some((e) => e.includes(key) || key.includes(e))) continue;
+    existing.add(key);
+    added++;
+    parsedJSON.candidates.push({
+      name,
+      title: "",
+      company: "",
+      location: "",
+      top_skills: [],
+      years_of_experience: "",
+      summary: "",
+      ai_match_note: `Google Scholar author profile${venueNote}. Thin profile — verify current role and affiliation before outreach.`,
+      web_link: url,
+      search_query_url: url,
+      is_synthetic: false,
+    });
+  }
+  if (added > 0) console.log(`[ScholarMerge] Added ${added} thin Scholar author cards.`);
+  return parsedJSON;
+}
+
 export function normalizeCriteria(raw: any): Record<string, any> {
   const r = raw && typeof raw === "object" ? raw : {};
   const pick = (...keys: string[]): any => {
@@ -1072,16 +1119,21 @@ export async function handleGenerateCandidates(body: any): Promise<{ status: num
               seenUrls.add(r.url);
               return true;
             });
+
+          // Cap what we feed the LLM: beyond ~20 results the structuring call
+          // gets slow enough to hit the 60s serverless limit. The remainder
+          // still contributes via the deterministic Scholar merge below.
+          const structuringResults = searchResults.slice(0, 20);
           
           if (searchResults && searchResults.length > 0) {
             usedTavily = true;
             realSources = searchResults.map((r: any) => `${r.title}: ${r.url}`);
             
-            const searchResultsText = searchResults.map((r: any, idx: number) => `
+            const searchResultsText = structuringResults.map((r: any, idx: number) => `
 Result #${idx + 1}:
 Title: ${r.title}
 URL: ${r.url}
-Snippet: ${r.content}
+Snippet: ${(r.content || "").slice(0, 600)}
 `).join("\n\n");
 
             const tavilyStructureSystemInstruction = `You are an elite talent acquisition AI. Your task is to analyze raw search engine results (titles, URLs, snippets) and extract real, verifiable professional profiles matching the search criteria.
@@ -1099,10 +1151,10 @@ Required Skills: ${criteria.required_skills?.join(", ")}
 Preferred Skills: ${criteria.preferred_skills?.join(", ")}
 Education: ${criteria.education_signals?.join(", ")}
 
-Here are ${searchResults.length} raw search engine results retrieved live from Tavily Search (merged across multiple targeted queries — general web, LinkedIn, academic/Scholar, and GitHub):
+Here are ${structuringResults.length} raw search engine results retrieved live from Tavily Search (merged across multiple targeted queries — general web, LinkedIn, academic/Scholar, and GitHub):
 ${searchResultsText}
 
-Extract and structure every genuinely distinct, real candidate you can verify from these live search results into the required JSON format — do not artificially limit the count. If a candidate's profile is found, use their exact LinkedIn, GitHub, Scholar, or other profile URL as the 'web_link' and the 'search_query_url'.`;
+Extract and structure the genuinely distinct, real candidates you can verify from these live search results — at most 15, best matches first. If a candidate's profile is found, use their exact LinkedIn, GitHub, Scholar, or other profile URL as the 'web_link' and the 'search_query_url'.`;
 
             try {
               if (LLM_PROVIDER === "deepseek") {
@@ -1111,7 +1163,7 @@ Extract and structure every genuinely distinct, real candidate you can verify fr
 Output strictly a JSON object matching this schema (all keys present on every candidate, arrays never null, is_synthetic false):
 ${CANDIDATE_JSON_SCHEMA}
 
-IMPORTANT — do not drop thin profiles: if a result is a Google Scholar / Semantic Scholar author page that names a real researcher with publications but lacks title/company details, STILL include them as a candidate. Fill name, the Scholar URL as web_link, and put their visible publication venues/topics in ai_match_note. Leave unknown fields as empty strings — never invent a title, company, or location. A sparse-but-real researcher card is far more useful than skipping them. Maximize the number of genuine candidates returned.`;
+IMPORTANT — do not drop thin profiles: if a result is a Google Scholar / Semantic Scholar author page that names a real researcher with publications but lacks title/company details, STILL include them as a candidate. Fill name, the Scholar URL as web_link, and put their visible publication venues/topics in ai_match_note. Leave unknown fields as empty strings — never invent a title, company, or location. A sparse-but-real researcher card is far more useful than skipping them.`;
                 const content = await callDeepSeek(tavilyStructureSystemInstruction, schemaPrompt, modelName);
                 parsedJSON = normalizeCandidates(extractJson(content));
               } else {
@@ -1166,6 +1218,11 @@ IMPORTANT — do not drop thin profiles: if a result is a Google Scholar / Seman
               const localCandidates = parseTavilyResultsLocally(searchResults, criteria);
               parsedJSON = { candidates: localCandidates };
             }
+
+            // Deterministic Scholar sweep: the LLM still skips some thin Scholar
+            // author pages, so merge them in directly — no extra API cost, instant,
+            // and deduped against the LLM's candidates by name.
+            parsedJSON = mergeScholarAuthors(parsedJSON, searchResults, criteria);
           } else {
             console.warn("Tavily returned 0 search results. Falling back.");
           }
