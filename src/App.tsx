@@ -279,7 +279,7 @@ export default function App() {
                 </h4>
                 <p className="text-xs text-ink/70 mt-1 leading-relaxed">
                   {fallbackReason === "rate_limit"
-                    ? "Gemini's quota was exhausted for this request. These candidates are locally-generated placeholders, not real people or a real search."
+                    ? "The LLM quota was exhausted for this request. These candidates are locally-generated placeholders, not real people or a real search."
                     : "The LLM API call failed (not a quota issue). These candidates are locally-generated placeholders, not real people or a real search."}
                 </p>
               </div>
@@ -301,7 +301,7 @@ export default function App() {
                   </h4>
                   <p className="text-xs text-ink/70 mt-1 leading-relaxed">
                     {searchEngine === "tavily"
-                      ? "These candidates were located in real-time from parallel web searches across LinkedIn, academic sources (Scholar/arXiv), and GitHub, then structured using Gemini. Still confirm each profile manually before outreach."
+                      ? "These candidates were located in real-time from parallel web searches across LinkedIn, academic sources (Scholar/arXiv), and GitHub, then structured using DeepSeek. Still confirm each profile manually before outreach."
                       : "These candidates were reformatted from an actual Google Search grounding call. Still confirm each profile manually before outreach."}
                   </p>
                 </div>
@@ -450,7 +450,7 @@ export default function App() {
                     {isFallback ? "local placeholder results" : searchEngine === "tavily" ? "live multi-source search results" : "live grounded search results"}
                   </h2>
                   <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full border ${isFallback ? "bg-amber-500/10 border-amber-500/30 text-amber-700" : "bg-[#00B4D8]/10 border-[#00B4D8]/30 text-[#04748c]"}`}>
-                    {candidates.length} profiles
+                    {candidates.length} profile{candidates.length === 1 ? "" : "s"}
                   </span>
                 </div>
                 <p className="text-[10px] text-muted font-mono hidden sm:block">
@@ -494,7 +494,7 @@ export default function App() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 max-w-3xl mx-auto border-t border-ink/10 text-left text-xs">
                 <div className="p-4 rounded-2xl bg-white/60 border border-white/90 space-y-1">
                   <div className="text-[#04748c] font-mono font-bold text-[10px] uppercase tracking-wider">1 · intent parse</div>
-                  <p className="text-muted text-[11px] leading-relaxed">Gemini identifies role title, seniority, locations, must-have skills, and academic pipelines.</p>
+                  <p className="text-muted text-[11px] leading-relaxed">DeepSeek identifies role title, seniority, locations, must-have skills, and academic pipelines.</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-white/60 border border-white/90 space-y-1">
                   <div className="text-[#04748c] font-mono font-bold text-[10px] uppercase tracking-wider">2 · tuning & filters</div>
@@ -515,7 +515,7 @@ export default function App() {
           <h3 className="m-0 mb-2.5 font-extrabold lowercase tracking-tight text-[clamp(26px,4vw,40px)]">keep sourcing</h3>
           <p className="font-mono text-[12px] text-white/65 leading-[1.8] max-w-[520px] mx-auto">
             natural language in, verified profiles out.<br />
-            built on the gemini api + tavily live search.
+            built on the deepseek api + tavily live search.
           </p>
           <div className="flex gap-2.5 justify-center flex-wrap mt-6">
             <span className="font-mono text-[12px] font-bold border border-white/25 text-white rounded-full px-[18px] py-2.5">talent<span className="text-[#00B4D8]">os</span></span>

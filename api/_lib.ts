@@ -686,6 +686,31 @@ export function buildTavilyQueries(criteria: any): string[] {
     [`site:github.com`, skillsOrGroup, roleTerm].filter(Boolean).join(" ")
   );
 
+  // Query 5: Academic venue + school targeted — for researcher/PhD queries,
+  // search the named publication venues crossed with the named schools.
+  // This is what surfaces Scholar author pages for e.g. "AAAI" + "University
+  // of Toronto" instead of generic keyword matches.
+  const venues: string[] = (criteria.publication_venues || []).filter((v: string) => v && v.length > 1);
+  const schools: string[] = (criteria.target_schools || []).filter((s: string) => s && s.length > 2);
+  if (venues.length > 0 || schools.length > 0) {
+    const venueGroup = venues.length > 0
+      ? `(${venues.map((v: string) => `"${v.replace(/["']/g, "")}"`).join(" OR ")})`
+      : "";
+    const schoolGroup = schools.length > 0
+      ? `(${schools.map((s: string) => `"${s.replace(/["']/g, "")}"`).join(" OR ")})`
+      : "";
+    queries.push(
+      [
+        venueGroup,
+        schoolGroup,
+        `(PhD OR "Ph.D." OR doctoral OR postdoc OR "graduate student" OR researcher)`,
+        `(site:scholar.google.com OR site:semanticscholar.org OR site:arxiv.org OR site:linkedin.com/in OR "google scholar")`,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    );
+  }
+
   return queries.filter(q => q.trim().length > 0);
 }
 
@@ -800,7 +825,9 @@ const CRITERIA_JSON_SCHEMA = `{
   "industry": "string — target industry vertical",
   "education_signals": ["string — degrees, schools, research credentials"],
   "diversity_or_demographic_filters": "string — demographic keywords, if any",
-  "other_notes": "string — extra observations"
+  "other_notes": "string — extra observations",
+  "publication_venues": ["string — conferences/journals mentioned, e.g. AAAI, NeurIPS, ICLR"],
+  "target_schools": ["string — universities/schools mentioned, e.g. University of Toronto"]
 }`;
 
 function toStringArray(v: any): string[] {
@@ -888,6 +915,8 @@ export function normalizeCriteria(raw: any): Record<string, any> {
   const education_signals = toStringArray(pick("education_signals", "education", "degrees", "schools"));
   const diversity_or_demographic_filters = toStringVal(pick("diversity_or_demographic_filters", "diversity", "demographics"));
   const other_notes = toStringVal(pick("other_notes", "notes", "company_size"));
+  const publication_venues = toStringArray(pick("publication_venues", "venues", "conferences", "journals"));
+  const target_schools = toStringArray(pick("target_schools", "schools", "universities", "institutions"));
   return {
     role,
     seniority_level,
@@ -898,6 +927,8 @@ export function normalizeCriteria(raw: any): Record<string, any> {
     education_signals,
     diversity_or_demographic_filters,
     other_notes,
+    publication_venues,
+    target_schools,
   };
 }
 
@@ -1078,7 +1109,9 @@ Extract and structure every genuinely distinct, real candidate you can verify fr
                 const schemaPrompt = `${tavilyStructurePrompt}
 
 Output strictly a JSON object matching this schema (all keys present on every candidate, arrays never null, is_synthetic false):
-${CANDIDATE_JSON_SCHEMA}`;
+${CANDIDATE_JSON_SCHEMA}
+
+IMPORTANT — do not drop thin profiles: if a result is a Google Scholar / Semantic Scholar author page that names a real researcher with publications but lacks title/company details, STILL include them as a candidate. Fill name, the Scholar URL as web_link, and put their visible publication venues/topics in ai_match_note. Leave unknown fields as empty strings — never invent a title, company, or location. A sparse-but-real researcher card is far more useful than skipping them. Maximize the number of genuine candidates returned.`;
                 const content = await callDeepSeek(tavilyStructureSystemInstruction, schemaPrompt, modelName);
                 parsedJSON = normalizeCandidates(extractJson(content));
               } else {

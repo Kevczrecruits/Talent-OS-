@@ -145,11 +145,13 @@ export default function ResultCard({ candidate }: ResultCardProps) {
                 </span>
               )}
             </div>
-            <p className="text-xs text-muted mt-0.5 truncate">
-              <span className="font-bold text-ink/80">{candidate.title}</span>
-              <span className="text-muted/60 mx-1.5">@</span>
-              <span className="text-[#04748c] font-mono text-[11px]">{candidate.company}</span>
-            </p>
+            {(candidate.title || candidate.company) && (
+              <p className="text-xs text-muted mt-0.5 truncate">
+                {candidate.title && <span className="font-bold text-ink/80">{candidate.title}</span>}
+                {candidate.title && candidate.company && <span className="text-muted/60 mx-1.5">@</span>}
+                {candidate.company && <span className="text-[#04748c] font-mono text-[11px]">{candidate.company}</span>}
+              </p>
+            )}
           </div>
         </div>
 
@@ -220,7 +222,7 @@ export default function ResultCard({ candidate }: ResultCardProps) {
                   className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-mono font-bold rounded-full bg-ink text-white hover:bg-[#1a2233] transition-all duration-200"
                 >
                   <Search className="w-3.5 h-3.5" />
-                  <span>search linkedin</span>
+                  <span>{(candidate.search_query_url || "").includes("scholar") ? "view scholar profile" : "search linkedin"}</span>
                   <ArrowUpRight className="w-3 h-3" />
                 </a>
               ) : (

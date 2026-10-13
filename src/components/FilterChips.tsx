@@ -15,6 +15,8 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
   const requiredSkills: string[] = Array.isArray(criteria.required_skills) ? criteria.required_skills : [];
   const preferredSkills: string[] = Array.isArray(criteria.preferred_skills) ? criteria.preferred_skills : [];
   const educationSignals: string[] = Array.isArray(criteria.education_signals) ? criteria.education_signals : [];
+  const publicationVenues: string[] = Array.isArray(criteria.publication_venues) ? criteria.publication_venues : [];
+  const targetSchools: string[] = Array.isArray(criteria.target_schools) ? criteria.target_schools : [];
   const hasActiveFilters =
     !!criteria.role ||
     !!criteria.seniority_level ||
@@ -23,6 +25,8 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
     preferredSkills.length > 0 ||
     !!criteria.industry ||
     educationSignals.length > 0 ||
+    publicationVenues.length > 0 ||
+    targetSchools.length > 0 ||
     !!criteria.diversity_or_demographic_filters;
 
   if (!hasActiveFilters) {
@@ -141,6 +145,28 @@ export default function FilterChips({ criteria, onRemoveChip, onClearAll }: Filt
             edu,
             <BookOpen className="w-3.5 h-3.5" />,
             "border-pink-500/40 text-pink-700 bg-pink-500/10"
+          )
+        )}
+
+        {/* Publication Venues */}
+        {publicationVenues.map((venue) =>
+          renderChip(
+            venue,
+            "publication_venues",
+            venue,
+            <BookOpen className="w-3.5 h-3.5" />,
+            "border-teal-500/40 text-teal-700 bg-teal-500/10"
+          )
+        )}
+
+        {/* Target Schools */}
+        {targetSchools.map((school) =>
+          renderChip(
+            school,
+            "target_schools",
+            school,
+            <Users className="w-3.5 h-3.5" />,
+            "border-sky-500/40 text-sky-700 bg-sky-500/10"
           )
         )}
 

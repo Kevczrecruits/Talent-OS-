@@ -8,6 +8,8 @@ export interface SourcingCriteria {
   education_signals: string[];
   diversity_or_demographic_filters: string;
   other_notes: string;
+  publication_venues: string[];
+  target_schools: string[];
 }
 
 export interface Candidate {
