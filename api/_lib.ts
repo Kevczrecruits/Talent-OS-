@@ -726,7 +726,7 @@ export async function searchTavily(query: string, apiKey: string): Promise<any[]
         query: query,
         search_depth: "advanced",
         include_answer: false,
-        max_results: 20
+        max_results: 12
       })
     });
     
@@ -913,7 +913,7 @@ function mergeScholarAuthors(parsedJSON: any, searchResults: any[], criteria: an
   const venueNote = venues.length > 0 ? ` — publications at ${venues.slice(0, 5).join(", ")}` : "";
   let added = 0;
   for (const r of searchResults) {
-    if (added >= 10) break;
+    if (added >= 12) break;
     const url: string = r?.url || "";
     const lu = url.toLowerCase();
     if (!lu.includes("scholar.google.") && !lu.includes("semanticscholar.org")) continue;
@@ -1120,10 +1120,11 @@ export async function handleGenerateCandidates(body: any): Promise<{ status: num
               return true;
             });
 
-          // Cap what we feed the LLM: beyond ~20 results the structuring call
-          // gets slow enough to hit the 60s serverless limit. The remainder
-          // still contributes via the deterministic Scholar merge below.
-          const structuringResults = searchResults.slice(0, 20);
+          // Cap what we feed the LLM: DeepSeek's output speed is the bottleneck
+          // (~30-50 tok/s), so a tight input + a hard candidate cap keeps the
+          // whole call inside the 60s serverless limit. The remainder still
+          // contributes via the deterministic Scholar merge below.
+          const structuringResults = searchResults.slice(0, 15);
           
           if (searchResults && searchResults.length > 0) {
             usedTavily = true;
@@ -1133,7 +1134,7 @@ export async function handleGenerateCandidates(body: any): Promise<{ status: num
 Result #${idx + 1}:
 Title: ${r.title}
 URL: ${r.url}
-Snippet: ${(r.content || "").slice(0, 600)}
+Snippet: ${(r.content || "").slice(0, 400)}
 `).join("\n\n");
 
             const tavilyStructureSystemInstruction = `You are an elite talent acquisition AI. Your task is to analyze raw search engine results (titles, URLs, snippets) and extract real, verifiable professional profiles matching the search criteria.
@@ -1154,7 +1155,7 @@ Education: ${criteria.education_signals?.join(", ")}
 Here are ${structuringResults.length} raw search engine results retrieved live from Tavily Search (merged across multiple targeted queries — general web, LinkedIn, academic/Scholar, and GitHub):
 ${searchResultsText}
 
-Extract and structure the genuinely distinct, real candidates you can verify from these live search results — at most 15, best matches first. If a candidate's profile is found, use their exact LinkedIn, GitHub, Scholar, or other profile URL as the 'web_link' and the 'search_query_url'.`;
+Extract and structure the genuinely distinct, real candidates you can verify from these live search results — at most 10, best matches first. If a candidate's profile is found, use their exact LinkedIn, GitHub, Scholar, or other profile URL as the 'web_link' and the 'search_query_url'.`;
 
             try {
               if (LLM_PROVIDER === "deepseek") {
