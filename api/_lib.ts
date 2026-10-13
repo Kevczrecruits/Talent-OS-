@@ -910,15 +910,29 @@ function mergeScholarAuthors(parsedJSON: any, searchResults: any[], criteria: an
       .filter(Boolean)
   );
   const venues: string[] = Array.isArray(criteria?.publication_venues) ? criteria.publication_venues : [];
+  const schools: string[] = Array.isArray(criteria?.target_schools) ? criteria.target_schools : [];
   const venueNote = venues.length > 0 ? ` — publications at ${venues.slice(0, 5).join(", ")}` : "";
+  // When venue/school filters are active, only sweep Scholar authors whose
+  // result actually mentions one of them — keeps the sweep targeted.
+  const hasFilters = venues.length > 0 || schools.length > 0;
+  const mentionsFilter = (r: any): boolean => {
+    if (!hasFilters) return true;
+    const hay = `${r.title || ""} ${r.content || ""}`.toLowerCase();
+    return [...venues, ...schools].some((t) => t && hay.includes(String(t).toLowerCase()));
+  };
   let added = 0;
   for (const r of searchResults) {
     if (added >= 12) break;
     const url: string = r?.url || "";
     const lu = url.toLowerCase();
     if (!lu.includes("scholar.google.") && !lu.includes("semanticscholar.org")) continue;
+    if (!mentionsFilter(r)) continue;
+    // Strip bidi control chars Tavily sometimes wraps titles in, the
+    // trailing " - Google Scholar" suffix, and parenthetical credentials.
     const cleaned: string = String(r.title || "")
+      .replace(/[\u202A-\u202E\u200E\u200F]/g, "")
       .replace(/\s*[|｜\-–]\s*(Google Scholar|Semantic Scholar).*$/i, "")
+      .replace(/\s*\([^)]*\)\s*/g, " ")
       .trim();
     const name = cleaned.split(/[,|｜]/)[0].trim();
     if (!name || name.length > 60) continue;
@@ -1164,7 +1178,9 @@ Extract and structure the genuinely distinct, real candidates you can verify fro
 Output strictly a JSON object matching this schema (all keys present on every candidate, arrays never null, is_synthetic false):
 ${CANDIDATE_JSON_SCHEMA}
 
-IMPORTANT — do not drop thin profiles: if a result is a Google Scholar / Semantic Scholar author page that names a real researcher with publications but lacks title/company details, STILL include them as a candidate. Fill name, the Scholar URL as web_link, and put their visible publication venues/topics in ai_match_note. Leave unknown fields as empty strings — never invent a title, company, or location. A sparse-but-real researcher card is far more useful than skipping them.`;
+IMPORTANT — do not drop thin profiles: if a result is a Google Scholar / Semantic Scholar author page that names a real researcher with publications but lacks title/company details, STILL include them as a candidate. Fill name, the Scholar URL as web_link, and put their visible publication venues/topics in ai_match_note. Leave unknown fields as empty strings — never invent a title, company, or location. A sparse-but-real researcher card is far more useful than skipping them.
+
+STRICT RELEVANCE FILTER: when publication_venues are given, only include candidates whose research area genuinely matches — verifiable publications at those venues, or an AI/ML research profile. Exclude candidates from unrelated disciplines (e.g. sociology, health promotion, humanities) even if they are PhD students. When target_schools are given, prefer candidates affiliated with those schools. Quality over quantity: 5 well-matched candidates beat 10 loose ones.`;
                 const content = await callDeepSeek(tavilyStructureSystemInstruction, schemaPrompt, modelName);
                 parsedJSON = normalizeCandidates(extractJson(content));
               } else {
